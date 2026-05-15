@@ -1,0 +1,17 @@
+# --- 1. 忽略体积巨大的模型与第三方库 ---
+models/
+LlamaFactory/
+
+# --- 2. 忽略运行日志 ---
+logs/
+
+# --- 3. 运行时的输出数据只保存SFT和DPO数据 ---
+output/*
+!output/IF_sft_data.json
+!output/dpo_pairs_flat.jsonl
+
+# --- 4. 忽略 Python 编译缓存与系统临时文件 ---
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
