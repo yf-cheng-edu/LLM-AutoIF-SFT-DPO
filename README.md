@@ -250,7 +250,7 @@ The following statistics are based on a representative benchmark run on AutoDL (
 
 | Stage | Metric | Count | Notes |
 | --- | --- | --- | --- |
-| **Step 0** | Raw seed instructions | 35 | Initial seed input |
+| **Step 0** | Raw seed instructions | 36 | Initial seed input |
 | **Step 1** | Post-RFT augmented instructions | 153 | Expanded instruction pool |
 | **Step 2** | Instructions entering verification | 189 | 35 + 153 full set |
 | **Step 3** | Cross-validation survivors | 70 | Reliable verifiable instructions only |
