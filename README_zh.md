@@ -201,7 +201,7 @@ Step 7 候选响应全量池 (共 4,720 个样本)
 | **训练轮数 (Epochs)** | 15 | 5 |
 | **最大序列长度 (Max Length)** | 1024 | 1024 |
 | **计算精度** | BF16 | BF16 |
-| **有效单批次大小 (Batch Size)** | 4 (1$\times$4) | 8 (1$\times$8) |
+| **有效单批次大小 (Batch Size)** | 4 (1×4) | 8 (1×8) |
 | **学习率调度器** | Cosine | Cosine |
 | **LoRA 目标模块 (Targets)** | q, k, v, o, gate, up, down | q, k, v, o, gate, up, down |
 | **Dropout 概率** | 0.1 | 0.05 |
