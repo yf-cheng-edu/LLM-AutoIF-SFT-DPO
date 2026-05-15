@@ -1,0 +1,44 @@
+### LlamaFactory SFT 训练配置（根据 Shell 脚本同步）
+### 使用方法: cd LlamaFactory && llamafactory-cli train ../configs/llamafactory_sft_lora.yaml
+
+### ========== 模型配置 ==========
+# 环境变量 $STUDENT_PATH 指向的是 ../models/student
+model_name_or_path: ../models/student
+template: qwen
+
+### ========== 微调方法 ==========
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_target: q_proj,v_proj,k_proj,o_proj,gate_proj,up_proj,down_proj
+lora_rank: 32
+lora_alpha: 64
+lora_dropout: 0.1
+
+### ========== 数据集配置 ==========
+dataset: autoif_sft
+dataset_dir: ../configs
+cutoff_len: 1024               
+overwrite_cache: true
+preprocessing_num_workers: 16
+
+### ========== 输出配置 ==========
+output_dir: ../models/model_c_sft  # 指向 refined 文件夹
+logging_steps: 1                
+save_steps: 20                  # 高频保存权重
+plot_loss: true
+overwrite_output_dir: true
+
+### ========== 训练超参数 ==========
+per_device_train_batch_size: 1  
+gradient_accumulation_steps: 4  
+learning_rate: 1.0e-4           
+num_train_epochs: 15.0          
+lr_scheduler_type: cosine
+warmup_steps: 10                
+weight_decay: 0.01              # 权重衰减，防止过拟合
+bf16: true                     
+
+### ========== 其他配置 ==========
+ddp_timeout: 180000000
+report_to: none                
