@@ -1,373 +1,360 @@
-# AutoIF: 基于自动指令遵循的大模型微调系统
+<div align="center">
 
-> 基于论文 [Self-play with Execution Feedback](https://arxiv.org/abs/2406.13542) (ICLR 2025 Spotlight) 实现
-> 支持**任意领域**（法律/金融/医疗/教育...）的大模型微调
+# AutoIF
+### Automated Instruction-Following Fine-Tuning for Large Language Models
+*Based on Self-play with Execution Feedback (ICLR 2025 Spotlight)*
 
----
-
-## 项目亮点
-
-- **领域无关**: 只需替换种子指令即可适配任何专业领域（法律、金融、医疗等）
-- **全自动Pipeline**: 从数据生成到训练一键完成，无需人工标注
-- **单卡可跑**: A800 单卡 80GB 即可运行完整流程
-- **20分钟出结果**: 不含环境安装，全流程约20分钟
+</div>
 
 ---
 
-## 🚀 快速开始
+## Table of Contents
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Domain Adaptation](#domain-adaptation)
+- [Architecture](#architecture)
+- [Evaluation Results](#evaluation-results)
+- [Pipeline Statistics](#pipeline-statistics)
+- [Project Structure](#project-structure)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [Citation](#citation)
+- [License](#license)
 
-### 环境要求
+---
 
-| 项目 | 要求 |
-|------|------|
-| GPU | NVIDIA A800 80GB |
-| 系统 | Ubuntu + Python 3.10+ |
-| CUDA | 12.x |
-| 磁盘 | 至少40GB可用空间 |
+## Overview
+AutoIF is a fully automated fine-tuning framework that improves the instruction-following capabilities of large language models (LLMs) through execution feedback and self-play. By leveraging a teacher-student architecture and a multi-stage data synthesis pipeline, AutoIF generates high-quality supervised fine-tuning (SFT) and direct preference optimization (DPO) data from seed instructions alone — no human annotation required.
 
-### Step 1: 上传代码
+The framework is designed to be domain-agnostic: by swapping seed instructions, it can produce specialized models for legal, financial, medical, educational, and 30+ other domains within approximately 20 minutes on a single GPU.
 
+> **Design Principle:** AutoIF converts the LLM's own execution feedback into a scalable alignment signal, transforming model-generated "negative outputs" into valuable DPO training material.
+
+---
+
+## Key Features
+* **Domain-Agnostic Pipeline** — Adapt to any professional domain by replacing a single seed instruction file; 30+ built-in domain templates are included out of the box.
+* **Fully Automated** — End-to-end execution from raw seed instructions to a fine-tuned, quantized model requires zero manual labeling or human review.
+* **Single-GPU Compatible** — The complete workflow runs on a single NVIDIA A800 (80 GB), making it accessible without multi-node infrastructure.
+* **Rapid Iteration** — Excluding environment setup, the full pipeline completes in approximately 20 minutes.
+* **Execution-Verified Data Quality** — A Python-based automatic verifier filters candidates through real code execution, achieving a rejection rate of ~66.6% to ensure only semantically coherent and constraint-satisfying samples survive.
+* **Dual-Phase Alignment** — Combines SFT (high-score filtering) and DPO (preference pair construction from pass/fail splits) for superior constraint adherence.
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+| :--- | :--- |
+| **Inference Acceleration** | vLLM 0.5.5 |
+| **Training Framework** | LLaMA-Factory |
+| **Teacher Model** | Qwen2.5-7B-Instruct (15 GB) |
+| **Student Model** | Qwen2.5-1.5B (3 GB) |
+| **NLI Filter Model** | mDeBERTa-v3-base (2.5 GB) |
+| **Fine-Tuning Method** | LoRA (SFT + DPO) |
+| **Compute Precision** | BF16 |
+| **Runtime** | Python 3.10+, CUDA 12.x, PyTorch 2.4.0 |
+
+---
+
+## Installation
+
+### Prerequisites
+| Requirement | Specification |
+| :--- | :--- |
+| **GPU** | NVIDIA A800 (80 GB VRAM) |
+| **Operating System** | Ubuntu 20.04 / 22.04 |
+| **Python** | 3.10 or above |
+| **CUDA** | 12.x |
+| **Disk Space** | ≥ 40 GB available |
+
+### Step 1 — Upload and Extract the Project
 ```bash
 cd /root/autodl-tmp
-# 如果您是通过压缩包上传的：
 unzip AutoIF-LLM.zip && cd AutoIF-LLM
 
 ```
 
-### Step 2: 一键安装环境
+### Step 2 — Run the One-Click Setup Script
 
 ```bash
 bash setup.sh
 
 ```
 
-安装内容：
+The setup script performs the following operations automatically:
 
-* PyTorch 2.4.0 + CUDA 12.1
-* vLLM 0.5.5（推理加速）
-* LlamaFactory（训练框架）
-* 教师模型 Qwen2.5-7B-Instruct（15GB）
-* 学生模型 Qwen2.5-1.5B（3GB）
-* NLI模型 mDeBERTa-v3（2.5GB）
-
-### Step 3: 一键运行全流程
-
-```bash
-# 通用领域
-bash run_all.sh
-
-# 指定领域
-bash run_all.sh --domain 法律
-bash run_all.sh --domain 金融
-bash run_all.sh --domain 医疗
-
-# 后台运行
-nohup bash run_all.sh --domain 法律 > run.log 2>&1 &
-tail -f run.log 
-
-```
+1. Installs PyTorch 2.4.0 with CUDA 12.1 support.
+2. Installs vLLM 0.5.5 for inference acceleration.
+3. Installs LLaMA-Factory as the training backend.
+4. Downloads the upstream models (Qwen2.5-7B-Instruct, Qwen2.5-1.5B, and mDeBERTa-v3).
 
 ---
 
-## 领域适配（核心创新点）
+## Quick Start
 
-本项目的核心创新在于：**通过替换种子指令，自动生成任意领域的高质量训练数据**。
-
-### 工作原理
-
-```
-种子指令 → AutoIF Pipeline → SFT数据 + DPO数据 → LoRA微调 → 领域大模型
-   ↑                                                           ↓
- 可替换！                                                  任意领域！
-
-```
-
-### 内置领域（30+）
-
-| 分类 | 领域 |
-| --- | --- |
-| 基础科学 | 数学、物理、化学、生物、天文、地理 |
-| 传统工程 | 土木工程、机械工程、电子工程、化工、材料科学、能源工程 |
-| 人文社科 | 文学、历史、哲学、新闻传播、社会学、心理学 |
-| 经济管理 | 工商管理、会计、公共管理、电子商务、金融 |
-| 应用领域 | 法律、医疗、教育、编程 |
-| 艺术体育 | 美术、音乐、体育 |
-
-### 自定义领域
+### Run the Full Pipeline
 
 ```bash
-# 查看所有可用领域
+# General-purpose domain (default)
+bash run_all.sh
+
+# Domain-specific fine-tuning
+bash run_all.sh --domain 法律      # Legal
+bash run_all.sh --domain 金融      # Finance
+bash run_all.sh --domain 医疗      # Medical
+
+# Background execution with log monitoring
+nohup bash run_all.sh --domain 法律 > run.log 2>&1 &
+tail -f run.log
+
+```
+
+### Pipeline Stages at a Glance
+
+The `run_all.sh` script orchestrates the following stages sequentially:
+
+| Stage | Description |
+| --- | --- |
+| **Stage 1** | Launch vLLM teacher model server |
+| **Stage 2** | AutoIF 9-step data synthesis |
+| **Stage 3** | DPO preference pair construction |
+| **Stage 4** | SFT training with LoRA |
+| **Stage 5** | DPO training with LoRA |
+| **Stage 6** | LoRA weight merging |
+| **Stage 7** | Model quantization |
+| **Stage 8** | Inference validation |
+
+---
+
+## Domain Adaptation
+
+The core innovation of AutoIF lies in its ability to generate high-quality, domain-specific training data automatically by substituting seed instructions.
+
+```text
+Seed Instructions → AutoIF Pipeline → SFT Data + DPO Data → LoRA Fine-Tuning → Domain LLM
+      ↑                                                                                ↓
+  Replaceable                                                               Any domain
+
+```
+
+### Built-in Domains (30+)
+
+* **Basic Sciences:** Mathematics, Physics, Chemistry, Biology, Astronomy, Geography
+* **Engineering:** Civil, Mechanical, Electrical, Chemical, Materials Science, Energy
+* **Humanities & Social Sciences:** Literature, History, Philosophy, Journalism, Sociology, Psychology
+* **Business & Management:** Business Administration, Accounting, Public Administration, E-commerce, Finance
+* **Applied Fields:** Law, Medicine, Education, Programming
+* **Arts & Sports:** Fine Arts, Music, Sports
+
+### Custom Domain Configuration
+
+```bash
+# List all available built-in domains
 python scripts/generate_seed_instructions.py --list
 
-# 生成自定义领域的种子指令
+# Generate seed instructions for a custom domain using the LLM
 python scripts/generate_seed_instructions.py --domain 建筑设计 --use-llm
 
-# 使用自定义领域运行
+# Run the pipeline with the custom domain
 bash run_all.sh --domain 建筑设计
 
 ```
 
-### 领域适配示例
-
-**法律大模型微调**：
-
-```bash
-bash run_all.sh --domain 法律
-# 种子指令示例：
-# - "引用具体的法律条文支持你的观点"
-# - "区分民事责任和刑事责任"
-# - "按时间顺序说明法律程序步骤"
-
-```
-
-**金融大模型微调**：
-
-```bash
-bash run_all.sh --domain 金融
-# 种子指令示例：
-# - "分析该投资产品的风险等级"
-# - "计算该理财产品的预期收益率"
-# - "对比不同投资策略的适用人群"
-
-```
-
-**医学大模型微调**：
-
-```bash
-bash run_all.sh --domain 医疗
-# 种子指令示例：
-# - "列举该疾病的常见症状（不少于5个）"
-# - "对比不同治疗方案的优缺点"
-# - "说明该药物的用法用量和注意事项"
-
-```
-
 ---
 
-## 技术架构
+## Architecture
 
-### 全流程概览
+### Data Synthesis Pipeline (9 Steps)
 
-```
-阶段1: vLLM教师模型启动
-  └── Qwen2.5-7B-Instruct 作为数据生成的教师
+* **Step 1:** Instruction Augmentation (36 → 189 instructions via RFT)
+* **Step 2:** Verification Function Generation
+* **Step 3:** Cross-Validation & Filtering (189 → 70 instructions)
+* **Step 4:** Back-Translation
+* **Step 5:** NLI Consistency Filtering (70 → 59 instructions, 86.76% retention)
+* **Step 6:** Query Augmentation + Response Generation (→ 4,720 candidates)
+* **Step 7:** Execution-Based Quality Scoring (→ 1,578 valid samples)
+* **Step 8:** High-Quality Filtering (Score > 8) (→ 27 SFT samples)
+* **Step 9:** SFT Dataset Construction (`IF_sft_data.json`)
 
-阶段2: AutoIF 数据合成（9步）
-  ├── Step 1: 指令增强（36→189条）
-  ├── Step 2: 验证函数生成
-  ├── Step 3: 交叉验证（质量过滤）
-  ├── Step 4: 反向翻译
-  ├── Step 5: NLI 一致性过滤
-  ├── Step 6: 查询增强 + 响应生成
-  ├── Step 7: 质量评分
-  ├── Step 8: 质量过滤（Score > 8）
-  └── Step 9: SFT 数据构建
+### DPO Preference Pair Construction
 
-阶段3: DPO 数据构建
-  ├── DPO-1: 响应评分
-  └── DPO-2: 偏好对构建
-
-阶段4: SFT 训练（LoRA）
-阶段5: DPO 训练（LoRA）
-阶段6: LoRA 权重合并
-阶段7: 量化
-阶段8: 推理测试
+```text
+Step 7 Full Response Pool (4,720 candidates)
+    ├── Chosen  (accuracy ≥ 0.7)  ──┐
+    └── Rejected (accuracy = 0.0) ──┴─→ Cartesian pairing → 587 preference pairs
+                                         (dpo_pairs_flat.jsonl)
 
 ```
 
-### 模型配置
+> **Design Rationale:** DPO preference pair construction deliberately bypasses the Step 8 high-score filter and traces back to the full Step 6/7 response pool. The 3,142 samples rejected during SFT filtering serve as high-contrast negative examples, maximizing the preference margin that DPO requires for effective alignment learning.
 
-| 角色 | 模型 | 大小 | 用途 |
-| --- | --- | --- | --- |
-| 教师模型 | Qwen2.5-7B-Instruct | 15GB | 生成训练数据 |
-| 学生模型 | Qwen2.5-1.5B | 3GB | 训练目标模型 |
-| NLI 模型 | mDeBERTa-v3 | 2.5GB | 指令一致性过滤 |
+### Training Configuration
 
-### 训练参数
-
-| 参数 | SFT 阶段 | DPO 阶段 |
+| Hyperparameter | SFT Phase | DPO Phase |
 | --- | --- | --- |
-| **微调方法** | LoRA (rank=32, alpha=64) | LoRA (rank=8, alpha=16) |
-| **学习率** | 1e-4 | 3e-6 |
-| **训练轮数 (Epochs)** | 15 | 5 |
-| **最大长度 (Cutoff Len)** | 1024 | 1024 |
-| **计算精度** | bf16 | bf16 |
-| **Batch Size (等效)** | 4 (1x4) | 8 (1x8) |
-| **调度器 (Scheduler)** | cosine | cosine |
-| **LoRA 目标模块** | 全量 Projection (q,v,k,o,gate,up,down) | 全量 Projection (q,v,k,o,gate,up,down) |
+| **Fine-tuning Method** | LoRA (rank=32, $\alpha$=64) | LoRA (rank=8, $\alpha$=16) |
+| **Learning Rate** | 1e-4 | 3e-6 |
+| **Epochs** | 15 | 5 |
+| **Max Sequence Length** | 1024 | 1024 |
+| **Precision** | BF16 | BF16 |
+| **Batch Size (effective)** | 4 (1×4) | 8 (1×8) |
+| **LR Scheduler** | Cosine | Cosine |
+| **LoRA Target Modules** | q, k, v, o, gate, up, down | q, k, v, o, gate, up, down |
 | **Dropout** | 0.1 | 0.05 |
-| **Beta (DPO 专属)** | - | 0.05 |
+| **Beta (DPO)** | — | 0.05 |
 
 ---
 
-## 📊 实验效果对比 (Model Evaluation)
+## Evaluation Results
 
-本项目对微调前后的模型进行了严格的 **指令遵循约束** 测试。以下是 Base 模型与微调对齐后模型在面对复杂格式约束、负向约束时的真实表现对比：
-### 1. 格式约束：电报风格 (Telegram Style)
-* **测试指令**：`How do I make sure my Wi-Fi is secure? Construct the reply as if it's a telegram STOP.`
-* **对齐表现**：
+The following section presents side-by-side terminal log comparisons of the base model vs. our fine-tuned stages (SFT & DPO) on hard constraint-following benchmarks.
 
-| 模型阶段 | 真实输出 (Actual Output) | 结果评估 |
-|:---|:---|:---|
-| **Base 模型** | `Here's how you can make your Wi-Fi network more secure:\n1. Change your Wi-Fi password...` | ❌ **失败**：完全忽略了"电报风格"和"STOP"约束，输出了常规的1-8点普通列表。 |
-| **SFT/DPO 模型** | `BEGIN TELEGRAM STOP TO ENSURE YOUR WIFI SECURITY IMPLEMENT STRONG PASSWORDS... STOP END TELEGRAM STOP` | ✅ **成功**：完美遵循全大写电报格式，并在内部断句及末尾精准嵌入了 `STOP` 符号。 |
+### 1. Comprehensive Base Model Failure (Baseline)
+Before alignment, the untreated base model consistently fails all macro and micro constraints (Format, Character Set, and Lexical boundaries) in a single continuous run:
 
-### 2. 词汇负向约束：必须以 '-ing' 结尾
-* **测试指令**：`How to start a book club? Use words that end with '-ing'.`
-* **对齐表现**：
-
-| 模型阶段 | 真实输出 (Actual Output) | 结果评估 |
-|:---|:---|:---|
-| **Base 模型** | `woordend met de klasse '-ing'` | ❌ **失败**：产生严重的语种幻觉，输出了非英文的无意义拼凑字符。 |
-| **DPO 模型** | `Creating, inviting, discussing, reading, scheduling, meeting, planning, reviewing...` | ✅ **成功**：不仅回答内容完全切题，且输出的每一个单词都严格满足 `-ing` 结尾的硬性代码逻辑限制。 |
-
-### 3. 高级字符集约束：仅使用前半部分字母 (A-M)
-
-* **测试指令**：`Explain NLP briefly. Use only the first half of the alphabet (A-M).`
-* **Base 模型表现**：直接输出了包含大量 `N~Z` 范围外部字母的长篇大论，彻底暴露出原生开源大模型无法理解底层 Token/字符级负向约束的固有缺陷。
+<img src="images/base_all_fails.png" width="100%">
 
 ---
 
-## 📈 数据流水线审计与统计 (Pipeline Statistics)
+### 2. Progressive Alignment Success (SFT vs. DPO)
 
-以下基于 **AutoDL (NVIDIA A800 80GB)** 平台运行通用领域微调的完整数据流转审计。
+#### Task A: Format Constraint — Telegram Style
+* **Prompt:** *How do I make sure my Wi-Fi is secure? Construct the reply as if it's a telegram STOP.*
 
-> ⚠️ **复现说明（关于数据随机性）**：
-> 由于大语言模型（LLM）在生成过程中存在固有的**随机性（Stochasticity）**，且 DPO 阶段包含随机采样（$\le 2$ 个正/负样本组合），**不同批次运行产生的绝对数量和留存率会有轻微浮动**。以下数据为典型基准（Benchmark）运行报告。
+| 🟢 SFT Phase (Initial Adherence) | 👑 DPO Phase (Final Optimization) |
+| :---: | :---: |
+| **`sft_base`** successfully captures the target format constraint, outputting all-caps and explicit STOP tokens. | **`dpo_v2_2`** stabilizes the constraint adherence with strict probability alignment via preference pairs. |
+| <img src="images/sft_telegram_pass.png" width="100%"> | <img src="images/dpo_telegram_pass.png" width="100%"> |
 
-### 1. 全流程数据流转与留存追踪
+#### Task B: Lexical Constraint — Words Ending in -ing
+* **Prompt:** *How to start a book club? Use words that end with '-ing'.*
 
-| 阶段 (Stage) | 核心节点与指标 | 实例数量 (Count) | 流水线状态 / 留存与修正说明 |
+| 👑 DPO Phase (Strict Suffix Adherence) |
+| :---: |
+| While the base model hallucinated in Dutch, the finalized DPO model forces every generated token to satisfy the `-ing` constraint perfectly. |
+| <img src="images/dpo_ing_pass.png" width="80%"> |
+
+---
+
+## Pipeline Statistics
+
+The following statistics are based on a representative benchmark run on AutoDL (NVIDIA A800 80 GB) for the general-purpose domain.
+
+> **Reproducibility Note:** Due to the inherent stochasticity of LLM generation and random sampling during DPO pair construction ($\le$ 2 positive/negative samples per prompt), absolute counts may vary slightly across runs.
+
+### End-to-End Data Flow
+
+| Stage | Metric | Count | Notes |
 | --- | --- | --- | --- |
-| **Step 0** | 原始种子指令数 (Seed) | 35 条 | 初始种子输入 |
-| **Step 1** | RFT 指令增强 | 153 条 | 扩充指令池拓扑 |
-| **Step 2** | 用于验证的指令总数 | 189 条 | $35 + 153$ 全量进入物理代码验证阶段 |
-| **Step 3** | 交叉验证幸存指令 | 70 条 | 仅保留在物理测试环境中具备高可靠判别器的指令 |
-| **Step 5** | NLI 一致性过滤留存 | 59 条 | **语义一致性留存率：86.76%**（淘汰9条矛盾指令） |
-| **Step 6** | 数据裂变（查询与响应） | 4,720 条 | 幸存指令进行 16× 扩流与 5× 响应生成 |
-| **Step 7** | 代码格式与执行反馈审计 | 1,578 条 | 经历物理执行测试后，未发生严重格式崩溃的有效样本 |
-| **Step 8** | SFT 高质量筛选 | **27 条** | 经过教师模型多维度评分，筛选出分值 >8 分（即10分）的极端极品样本，构建 `IF_sft_data.json`。 |
-| **DPO 阶段** | 偏好对构建 (DPO-1/2) | **587 对** | **【架构修正】** 数据并非来自 Step 8，而是回溯至 Step 6/7 的 4720 条全量响应，利用代码验证通过率构建 `dpo_pairs_flat.jsonl`。 |
+| **Step 0** | Raw seed instructions | 35 | Initial seed input |
+| **Step 1** | Post-RFT augmented instructions | 153 | Expanded instruction pool |
+| **Step 2** | Instructions entering verification | 189 | 35 + 153 full set |
+| **Step 3** | Cross-validation survivors | 70 | Reliable verifiable instructions only |
+| **Step 5** | Post-NLI filtering survivors | 59 | Retention rate: 86.76% |
+| **Step 6** | Query/response candidates | 4,720 | 16× query expansion × 5 responses |
+| **Step 7** | Execution-validated samples | 1,578 | Passed Python execution filter |
+| **Step 8** | High-quality SFT samples | 27 | Score > 8 (out of 10) |
+| **DPO** | Preference pairs | 587 | Chosen/rejected pairs from Step 6/7 pool |
 
-### 2. 核心清洗阶段深度审计
+### Execution Filter Rejection Rate (Step 7)
 
-#### 💥 Python 执行反馈拦截率（Step 7）
+Of the 4,720 candidate responses generated in Step 6:
 
-模型生成的 4,720 条候选响应面临了真实的 Python 环境自动化测试拦截：
-
-* 通过 Python 格式与逻辑审计的样本数：1,578
-* 被 Python 函数拒绝的低质样本数：3,142
-* **格式过滤杀伤率：66.57%**
-
-#### 💡 DPO 核心数据流洞察
-
-在构建 `587 对` DPO 偏好数据时，系统采取了**回溯对立策略**：
-
-1. **数据源回溯**：DPO 偏好对的构建直接绕过了 Step 8 的高分过滤，重新激活了 Step 6/7 生成的全部响应。
-2. **正负样本分离**：利用代码判别器的物理执行通过率（Accuracy Score）作为硬性指标：
-* 🌟 **正样本 (Chosen)**：通过率 $\ge 0.7$ 的响应。
-* 🚨 **负样本 (Rejected)**：通过率 $= 0$ 的响应。
-
-
-3. **组合配对条件**：同一个 prompt 下必须同时存在至少 1 个正样本和 1 个负样本。从正负池中各随机采样 $\le 2$ 个建立笛卡尔积对立对。
-4. **核心科学依据**：DPO（直接偏好优化）的本质是学习“好坏对比”。在 SFT 阶段被无情淘汰的 3,142 条“垃圾数据”，在这里恰恰是绝佳的负面教材。这种设计成功将负产物转化为对齐资产，拉大了偏好 Margin 差值。
+* **Passed Python execution validation:** 1,578 samples
+* **Rejected by Python verifier:** 3,142 samples
+* **Filter Rejection Rate:** **66.57%**
 
 ---
 
-## 📦 高质量精选数据集样例 (Curated Dataset Showcase)
+## Project Structure
 
-本项目之所以能取得显著的强约束对齐效果，核心得益于流水线生成的精选数据集。以下为保存在 `output/IF_sft_data.json` 中的代表性核心训练样本：
-
-```json
-[
-  {
-    "instruction": "What are the key concepts in natural language processing? Construct the reply as if it's a telegram STOP.",
-    "output": "KEY CONCEPTS IN NATURAL LANGUAGE PROCESSING INCLUDE MACHINE LEARNING ALGORITHMS, TOKENIZATION... STOP",
-    "history": []
-  },
-  {
-    "instruction": "How to start a book club? Use words that end with '-ing'.",
-    "output": "Creating, inviting, discussing, reading, scheduling, meeting, planning, reviewing, enjoying, sharing, analyzing, engaging.",
-    "history": []
-  },
-  {
-    "instruction": "How to troubleshoot slow internet? Write the response with words in alphabetical order.",
-    "output": "check, connect, disable, download, ensure, fix, identify, isolate, reboot, speed, test, upgrade",
-    "history": []
-  }
-]
-
-```
-
-> 💡 **数据集亮点**：合成数据包含了电报风格、指定词尾（-ing）、首字母范围限制（A-M）、纯疑问句交互、乃至**极端难度的全文本单词按字母表顺序升序排列（Alphabetical Order）**。这类高质量指令样本在当前的公用数据集中极度稀缺，是本项目实现领域大模型精准长尾对齐的基石。
-
----
-
-## 项目结构
-
-```
-├── README.md                    # 本文件
-├── setup.sh                     # 一键环境安装
-├── run_all.sh                   # 一键运行全流程（支持 --domain）
-├── requirements.txt             # Python 依赖
-├── code_sft/                        # AutoIF 数据合成代码（9步）
-│   ├── 1_RFT.py                 # Step 1: 指令增强
-│   ├── 2_verification_*.py      # Step 2: 验证函数生成
-│   ├── 3_cross_validation.py    # Step 3: 交叉验证
-│   ├── 4_eval_func_*.py         # Step 4: 反向翻译
-│   ├── 5_eval_func_*_filter.py  # Step 5: NLI一致性过滤
-│   ├── 6_concat_sharegpt_*.py   # Step 6: 查询+响应生成
-│   ├── 7_query_verification.py  # Step 7: 质量评分
-│   ├── 8_query_score_filter.py  # Step 8: 质量过滤
-│   ├── 9_sft_data_*.py          # Step 9: SFT数据构建
-│   └── utils.py                 # 工具函数（LLM调用等）
-├── code_dpo/                    # DPO 数据构建代码
-│   ├── 1_dpo_rft_wash.py        # 响应评分
-│   └── 2_dpo_data_*.py          # 偏好对构建
-├── scripts/                     # 辅助脚本
-│   ├── generate_seed_instructions.py  # 领域种子指令生成器
-│   ├── extended_domains.py      # 30+领域模板定义
-│   └── download_models.sh       # 模型下载脚本
-├── configs/                     # LlamaFactory训练配置
-│   ├── llamafactory_sft_lora.yaml   # SFT训练配置
-│   ├── llamafactory_dpo_lora.yaml   # DPO训练配置
-│   ├── llama_factory_dataset_info.json
-│   └── pipeline_config.yaml     # 流水线参数配置
-├── sample_data/                 # 种子数据
-│   └── seed_instruction.txt     # 默认种子指令（36条）
-├── models/                      # 模型目录（setup.sh自动下载）
-├── output/                      # 运行时输出数据
-│   ├── IF_sft_data.json         # 精选SFT高质量指令数据集
-│   └── dpo_pairs_flat.jsonl     # 精选DPO偏好对数据集（Alpaca格式）
-├── logs/                        # 运行日志
+```text
+AutoIF-LLM/
+├── README.md                           # This file
+├── setup.sh                            # One-click environment setup
+├── run_all.sh                          # Full pipeline runner (supports --domain)
+├── requirements.txt                    # Python dependencies
+│
+├── code_sft/                           # AutoIF 9-step data synthesis
+│   ├── 1_RFT.py                        # Step 1: Instruction augmentation
+│   ├── 2_verification_*.py             # Step 2: Verification function generation
+│   ├── 3_cross_validation.py           # Step 3: Cross-validation filtering
+│   ├── 4_eval_func_*.py                # Step 4: Back-translation
+│   ├── 5_eval_func_*_filter.py         # Step 5: NLI consistency filtering
+│   ├── 6_concat_sharegpt_*.py          # Step 6: Query augmentation & response generation
+│   ├── 7_query_verification.py         # Step 7: Execution-based quality scoring
+│   ├── 8_query_score_filter.py         # Step 8: High-quality sample filtering
+│   ├── 9_sft_data_*.py                 # Step 9: SFT dataset construction
+│   └── utils.py                        # Shared utilities (LLM calls, etc.)
+│
+├── code_dpo/                           # DPO data construction
+│   ├── 1_dpo_rft_wash.py               # Response scoring
+│   └── 2_dpo_data_*.py                 # Preference pair construction
+│
+├── scripts/                            # Auxiliary scripts
+│   ├── generate_seed_instructions.py   # Domain seed instruction generator
+│   ├── extended_domains.py             # 30+ domain template definitions
+│   ├── download_models.sh              # Model download helper
+│   └── patches/                        # Compatibility patch scripts
+│       ├── fix_qwen.py                 # vLLM rope_scaling injection patch
+│       ├── fix_config.py               # Training framework config normalization
+│       ├── dpo_modification.py         # LLaMA-Factory DPO dataset registration
+│       └── dpo2_modification.py        # ShareGPT → Alpaca format flattening
+│
+├── configs/                            # LLaMA-Factory training configurations
+│   ├── llamafactory_sft_lora.yaml      # SFT training config
+│   ├── llamafactory_dpo_lora.yaml      # DPO training config
+│   ├── llama_factory_dataset_info.json # Dataset registry
+│   └── pipeline_config.yaml           # Pipeline-level parameters
+│
+├── sample_data/
+│   └── seed_instruction.txt            # Default seed instructions (36 entries)
+│
+├── models/                             # Model weights (auto-populated by setup.sh)
+│
+├── output/                             # Runtime outputs
+│   ├── IF_sft_data.json                # Curated high-quality SFT dataset
+│   └── dpo_pairs_flat.jsonl            # DPO preference pairs (Alpaca format)
+│
+└── logs/                               # Execution logs
 
 ```
 
 ---
 
-## 🔧 兼容性补丁与故障排除 (On-demand Patches)
+## Troubleshooting
 
-由于大模型生态中 `vLLM`、`LLaMA-Factory` 以及 `Transformers` 版本迭代迅速，硬件环境（如 AutoDL A800）可能会由于底层库版本冲突引发初始化错误。
+Due to rapid versioning in the dependencies, ecosystem conflicts may arise. AutoIF ships with 4 built-in compatibility patches applied automatically by `run_all.sh`.
 
-本项目在 `scripts/patches/` 目录中内置了 4 个自动化修复补丁。**通常情况下，全流程一键运行脚本会自动处理，若您手动分步调试遭遇异常，可按需运行以下补丁：**
-
-### 1. 模型配置与推理适配补丁
-
-| 补丁脚本 | 针对问题 | 修复原理 | 运行命令 |
+| Script | Trigger Condition | Resolution | Manual Command |
 | --- | --- | --- | --- |
-| `fix_qwen.py` | 启动 vLLM 教师模型时报错，提示 `rope_scaling` 配置缺失或校验失败。 | 动态在指定模型的 `config.json` 中强行注入 vLLM 所需的 `{"factor": 1.0, "type": "default"}` 算子参数。 | `python scripts/patches/fix_qwen.py ./models/teacher` |
-| `fix_config.py` | 启动 SFT/DPO 训练时，框架因无法解析模型中的未知位置编码缩放而引发崩溃。 | 全局遍历 `models/` 目录，安全剥离所有非必要的 `rope_scaling` 字段，确保训练框架正常初始化。 | `python scripts/patches/fix_config.py` |
-
-### 2. 训练框架数据集注册补丁
-
-| 补丁脚本 | 针对问题 | 修复原理 | 运行命令 |
-| --- | --- | --- | --- |
-| `dpo_modification.py` | LLaMA-Factory 无法正确识别 DPO 偏好对数据，将其误认作标准 SFT 数据。 | 在 LLaMA-Factory 的 `dataset_info.json` 中强制注入 `"ranking": true` 标志，并建立 **ShareGPT** 格式映射。 | `python scripts/patches/dpo_modification.py` |
-| `dpo2_modification.py` | 训练框架在解析复杂的 ShareGPT 对话嵌套格式时产生解析异常或效率低下。 | **【格式升级】** 提取原始数据中的 `value` 文本，将 DPO 数据全量**扁平化（Flatten）**，重构并注册为更稳定的 **Alpaca** 外层格式。 | `python scripts/patches/dpo2_modification.py` |
+| **fix_qwen.py** | vLLM startup failure: `rope_scaling` validation error | Injects `{"factor": 1.0, "type": "default"}` into the model's `config.json` | `python scripts/patches/fix_qwen.py ./models/teacher` |
+| **fix_config.py** | Training framework fails to parse positional encoding | Strips non-standard fields from all configurations under `models/` | `python scripts/patches/fix_config.py` |
+| **dpo_modification.py** | LLaMA-Factory misidentifies DPO data as standard SFT | Injects `"ranking": true` flag and ShareGPT mappings into `dataset_info.json` | `python scripts/patches/dpo_modification.py` |
+| **dpo2_modification.py** | Parsing errors on nested ShareGPT conversation arrays | Flattens DPO data to Alpaca format and re-registers the dataset | `python scripts/patches/dpo2_modification.py` |
 
 ---
 
-## 参考文献
+## Contributing
+
+Contributions are welcome. To propose a change, please follow the standard GitHub workflow:
+
+1. Fork this repository.
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Commit your changes with clear, descriptive messages.
+4. Open a Pull Request against the `main` branch.
+
+For domain template contributions, please add entries to `scripts/extended_domains.py` and include at least 10 representative seed instructions per domain.
+
+---
+
+## Citation
+
+If you use AutoIF in your research or build upon this work, please cite the original paper:
 
 ```bibtex
 @article{dong2024self,
@@ -378,3 +365,12 @@ bash run_all.sh --domain 医疗
 }
 
 ```
+
+---
+
+## License
+
+This project is licensed under the **Apache License 2.0**.
+
+The underlying upstream models (Qwen2.5 series, mDeBERTa-v3) are subject to their respective original licenses. Please review them before commercial usage.
+
