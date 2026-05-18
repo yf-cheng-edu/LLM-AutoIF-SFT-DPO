@@ -1,0 +1,77 @@
+# AutoIF 完整流程配置文件
+
+# ========== 模型配置 ==========
+models:
+  # 监督模型（用于数据生成，根据 utils.py 指向 DeepSeek）
+  supervisor:
+    name: "deepseek-chat" 
+    api_key: "Your_API_KEY"  
+    api_base: "https://api.deepseek.com/v1"
+  
+  # 基础模型
+  base_model:
+    path: "../models/student/Qwen/Qwen2.5-1.5B-Instruct"
+    type: "qwen" 
+  
+  # 目标模型路径
+  output_paths:
+    sft: "../models/model_d_sft"
+    dpo: "../models/model_d_dpo_2"
+    merged: "../models/model_d_sft_merged"
+
+# ========== 数据配置 ==========
+data:
+  # 种子指令
+  seed_instructions: "./sample_data/seed_instruction.txt"
+  
+  # 数据量控制 (对齐 utils.py)
+  augmentation:
+    k_augment: 18          # 指令增强调用次数
+    rft_samples: 5         # K_VERIFICATION / K_RESPONSE
+  
+  query:
+    queries_per_instruction: 10  # QUERIES_PER_INSTRUCTION
+  
+  # 质量控制阈值 (对齐 utils.py)
+  quality_thresholds:
+    cross_validation_acc: 0.8  # CROSS_VAL_THRESHOLD
+    min_functions: 3           # MIN_EVAL_FUNCS
+    min_test_cases: 10         # MIN_TEST_CASES
+    quality_score: 9           # QUALITY_SCORE_THRESHOLD
+  
+  # DPO配对
+  dpo:
+    positive_threshold: 0.5    # DPO_POSITIVE_THRESHOLD
+
+# ========== 训练配置 ==========
+training:
+  # SFT配置
+  sft:
+    batch_size: 4
+    gradient_accumulation: 4
+    learning_rate: 5e-5
+    epochs: 3
+    max_length: 2048
+    warmup_ratio: 0.05
+    lr_scheduler: "cosine"
+    save_steps: 150
+    precision: "bf16"
+  
+# DPO配置 
+  dpo:
+    batch_size: 2
+    gradient_accumulation: 8
+    learning_rate: 5e-6
+    epochs: 2                
+    max_length: 2048
+    warmup_ratio: 0.1
+    save_steps: 25             
+    eval_steps: 25             
+    precision: "bf16"
+    pref_beta: 0.3
+
+# ========== 其他配置 ==========
+misc:
+  # 超时与并发 (对齐 utils.py)
+  timeout: 5             # EXEC_TIMEOUT: 验证函数执行超时（秒）
+  num_workers: 30        # LLM_MAX_WORKERS: LLM 并发调用数
