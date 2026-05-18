@@ -255,7 +255,9 @@ python tests/test_vllm.py
 
 ```
 
-> **Screenshot placeholder** — `images/test_vllm_result.png`
+<div align="center">
+  <img src="images/test_vllm_result.png" width="800" alt="vLLM 推理测试结果">
+</div>
 
 ---
 
@@ -308,7 +310,9 @@ bash scripts/run_all.sh --domain 建筑设计
 | **Step 8** | High-Quality SFT Sample Selection (Score > 9) | 6,031 → 2,239 SFT samples |
 | **Step 9** | SFT Dataset Construction | Output: `IF_sft_data.json` |
 
-> **Screenshot placeholder** — Score distribution visualization: `images/score_distribution.png`
+<div align="center">
+  <img src="images/评分段数据分布统计.png" width="800" alt="AutoIF 数据合成得分分布图">
+</div>
 
 ### DPO Preference Pair Construction
 
@@ -349,16 +353,39 @@ The DPO pipeline **intentionally bypasses** the Step 8 high-score filter and tra
 
 SFT training proceeds stably without overfitting. Validation loss decreases smoothly from 1.41 to 1.20, stabilizing at approximately step 350.
 
-> **Screenshot placeholder** — SFT Training Loss: `images/SFT/training_loss.png`
-> **Screenshot placeholder** — SFT Eval Loss: `images/SFT/training_eval_loss.png`
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="images/SFT/training_loss.png" width="380" alt="SFT Training Loss"><br>
+      <b>SFT Training Loss</b>
+    </td>
+    <td align="center">
+      <img src="images/SFT/training_eval_loss.png" width="380" alt="SFT Eval Loss"><br>
+      <b>SFT Eval Loss</b>
+    </td>
+  </tr>
+</table>
 
 ### DPO Preference Alignment
 
 Over 2 epochs of DPO training, reward accuracy (`Rewards/Accuracies`) climbs steadily and stabilizes at approximately **83%**. The evaluation loss reaches its minimum at step 175 without rebounding; accordingly, **`checkpoint-175`** is selected as the final production checkpoint.
 
-> **Screenshot placeholder** — DPO Rewards/Accuracies: `images/DPO/dpo_training_rewards_accuracies.png`
-> **Screenshot placeholder** — DPO Eval Loss: `images/DPO/dpo_training_eval_loss.png`
-> **Screenshot placeholder** — DPO Training Loss: `images/DPO/dpo_training_loss.png`
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="images/DPO/dpo_training_rewards_accuracies.png" width="250" alt="DPO Rewards Accuracies"><br>
+      <b>DPO Reward Accuracy</b>
+    </td>
+    <td align="center">
+      <img src="images/DPO/dpo_training_eval_loss.png" width="250" alt="DPO Eval Loss"><br>
+      <b>DPO Eval Loss</b>
+    </td>
+    <td align="center">
+      <img src="images/DPO/dpo_training_loss.png" width="250" alt="DPO Training Loss"><br>
+      <b>DPO Training Loss</b>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -370,17 +397,26 @@ The following comparisons demonstrate constraint-following behavior across the b
 
 Prior to alignment training, the unmodified base model fails multiple simultaneous constraints — including format, character set, and lexical boundary constraints — within a single inference run.
 
-> **Screenshot placeholder** — `images/base/base_response.png`
+<div align="center">
+  <img src="images/base/base_response.png" width="750" alt="基座模型约束完全失效输出示例">
+  <p><i>Figure: Inference response of the baseline model exhibiting complete constraint failure.</i></p>
+</div>
 
 ### 2. Progressive Alignment Success
 
 **SFT Stage (Initial Compliance):** The model successfully captures target format constraints (e.g., all-uppercase output with STOP markers).
 
-> **Screenshot placeholder** — `images/SFT/SFT_response.png`
+<div align="center">
+  <img src="images/SFT/SFT_response.png" width="750" alt="SFT阶段模型初步合规输出示例">
+  <p><i>Figure: Model showing initial compliance with target format constraints after SFT fine-tuning.</i></p>
+</div>
 
 **DPO Stage — Checkpoint 175 (Full Constraint Adherence):** Through probabilistic alignment via preference pairs, the model fully internalizes all constraints (telegram format, exact three-sentence limit, all sentences beginning with 'B', all sentences beginning with 'T').
 
-> **Screenshot placeholder** — `images/DPO/DPO_response.png`
+<div align="center">
+  <img src="images/DPO/DPO_response.png" width="750" alt="DPO阶段模型完全遵循约束输出示例">
+  <p><i>Figure: Checkpoint 175 achieving full adherence to all composite constraints after DPO preference alignment.</i></p>
+</div>`
 
 ---
 
