@@ -255,7 +255,9 @@ python tests/test_vllm.py
 
 ```
 
-> **运行截图占位符** — `images/test_vllm_result.png`
+<div align="center">
+  <img src="images/test_vllm_result.png" width="800" alt="vLLM 推理测试结果">
+</div>
 
 ---
 
@@ -308,7 +310,9 @@ bash scripts/run_all.sh --domain 建筑设计
 | **第 8 步** | 高质量 SFT 样本筛选 (得分 > 9) | 6,031 → 2,239 条高合规 SFT 样本 |
 | **第 9 步** | SFT 数据集格式构建 | 最终输出文件: `IF_sft_data.json` |
 
-> **运行截图占位符** — 得分分布可视化图表：`images/score_distribution.png`
+<div align="center">
+  <img src="images/评分段数据分布统计.png" width="700" alt="AutoIF 数据合成得分分布图">
+</div>
 
 ### DPO 偏好对构建机制
 
@@ -349,16 +353,39 @@ bash scripts/run_all.sh --domain 建筑设计
 
 SFT 训练过程非常平稳，未出现过拟合迹象。验证损失（Validation Loss）从 1.41 丝滑下降至 1.20，并在大约 350 步时趋于稳定。
 
-> **运行截图占位符** — SFT 训练损失: `images/SFT/training_loss.png`
-> **运行截图占位符** — SFT 验证损失: `images/SFT/training_eval_loss.png`
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="images/SFT/training_loss.png" width="380" alt="SFT Training Loss"><br>
+      <b>SFT Training Loss</b>
+    </td>
+    <td align="center">
+      <img src="images/SFT/training_eval_loss.png" width="380" alt="SFT Eval Loss"><br>
+      <b>SFT Eval Loss</b>
+    </td>
+  </tr>
+</table>
 
 ### DPO 偏好对齐
 
 在 2 个 Epoch 的 DPO 偏好训练期间，奖励准确率（`Rewards/Accuracies`）稳步攀升并最终稳定在 **83%** 左右。评估损失在第 175 步达到最低点且未发生反弹；因此，系统最终选定 **`checkpoint-175`** 作为上产线的最终检查点。
 
-> **运行截图占位符** — DPO 奖励准确率: `images/DPO/dpo_training_rewards_accuracies.png`
-> **运行截图占位符** — DPO 评估损失: `images/DPO/dpo_training_eval_loss.png`
-> **运行截图占位符** — DPO 训练损失: `images/DPO/dpo_training_loss.png`
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="images/DPO/dpo_training_rewards_accuracies.png" width="250" alt="DPO Rewards Accuracies"><br>
+      <b>DPO Reward Accuracy</b>
+    </td>
+    <td align="center">
+      <img src="images/DPO/dpo_training_eval_loss.png" width="250" alt="DPO Eval Loss"><br>
+      <b>DPO Eval Loss</b>
+    </td>
+    <td align="center">
+      <img src="images/DPO/dpo_training_loss.png" width="250" alt="DPO Training Loss"><br>
+      <b>DPO Training Loss</b>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -370,17 +397,26 @@ SFT 训练过程非常平稳，未出现过拟合迹象。验证损失（Validat
 
 在进行对齐训练前，原生的基座模型在单词推理中无法同时满足多项并发约束，格式、字符集以及词法边界约束全部失效。
 
-> **运行截图占位符** — `images/base/base_response.png`
+<div align="center">
+  <img src="images/base/base_response.png" width="750" alt="基座模型约束完全失效输出示例">
+  <p><i>图：基座模型（Baseline）对多项并发约束完全失效的推理响应</i></p>
+</div>
 
 ### 2. 渐进式对齐成功
 
 **SFT 阶段（捕获基础约束）：** 模型成功掌握了目标格式约束（例如：输出全大写文本并正确添加 STOP 结束标记）。
 
-> **运行截图占位符** — `images/SFT/SFT_response.png`
+<div align="center">
+  <img src="images/SFT/SFT_response.png" width="750" alt="SFT阶段模型初步合规输出示例">
+  <p><i>图：模型经过 SFT 微调后，已能初步捕获目标格式约束</i></p>
+</div>
 
 **DPO 阶段 — Checkpoint 175（完全化对齐）：** 通过基于偏好对的概率对齐，模型彻底内化了全部复合约束（满足电报体格式、严格限制在三句话内、所有句子均以 'B' 或 'T' 开头）。
 
-> **运行截图占位符** — `images/DPO/DPO_response.png`
+<div align="center">
+  <img src="images/DPO/DPO_response.png" width="750" alt="DPO阶段模型完全遵循约束输出示例">
+  <p><i>图：Checkpoint 175 经过 DPO 偏好对齐后，完全 internalization 了所有复合约束</i></p>
+</div>
 
 ---
 
