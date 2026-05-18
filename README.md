@@ -509,4 +509,3 @@ This project is released under the **Apache License 2.0**.
 
 Downstream foundation models used by this project (e.g., Qwen2.5 series, mDeBERTa-v3) are subject to their respective original licenses. Please review those licenses carefully before any commercial use.
 
-```
