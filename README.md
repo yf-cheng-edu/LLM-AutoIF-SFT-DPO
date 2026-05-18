@@ -502,7 +502,6 @@ If you use AutoIF in academic research or build upon this project, please cite t
 
 ```
 
----
 
 ## License
 
