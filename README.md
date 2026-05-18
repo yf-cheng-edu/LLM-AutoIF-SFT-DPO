@@ -256,7 +256,7 @@ python tests/test_vllm.py
 ```
 
 <div align="center">
-  <img src="images/test_vllm_result.png" width="800" alt="vLLM 推理测试结果">
+  <img src="images/test_vllm_result.png" width="800" alt="vLLM Inference Test Results">
 </div>
 
 ---
@@ -311,7 +311,7 @@ bash scripts/run_all.sh --domain 建筑设计
 | **Step 9** | SFT Dataset Construction | Output: `IF_sft_data.json` |
 
 <div align="center">
-  <img src="images/评分段数据分布统计.png" width="800" alt="AutoIF 数据合成得分分布图">
+  <img src="images/评分段数据分布统计.png" width="800" alt="AutoIF Data Synthesis Score Distribution Plot">
 </div>
 
 ### DPO Preference Pair Construction
@@ -398,7 +398,7 @@ The following comparisons demonstrate constraint-following behavior across the b
 Prior to alignment training, the unmodified base model fails multiple simultaneous constraints — including format, character set, and lexical boundary constraints — within a single inference run.
 
 <div align="center">
-  <img src="images/base/base_response.png" width="750" alt="基座模型约束完全失效输出示例">
+  <img src="images/base/base_response.png" width="750" alt="Baseline model failure">
   <p><i>Figure: Inference response of the baseline model exhibiting complete constraint failure.</i></p>
 </div>
 
@@ -407,14 +407,14 @@ Prior to alignment training, the unmodified base model fails multiple simultaneo
 **SFT Stage (Initial Compliance):** The model successfully captures target format constraints (e.g., all-uppercase output with STOP markers).
 
 <div align="center">
-  <img src="images/SFT/SFT_response.png" width="750" alt="SFT阶段模型初步合规输出示例">
+  <img src="images/SFT/SFT_response.png" width="750" alt="SFT initial compliance">
   <p><i>Figure: Model showing initial compliance with target format constraints after SFT fine-tuning.</i></p>
 </div>
 
 **DPO Stage — Checkpoint 175 (Full Constraint Adherence):** Through probabilistic alignment via preference pairs, the model fully internalizes all constraints (telegram format, exact three-sentence limit, all sentences beginning with 'B', all sentences beginning with 'T').
 
 <div align="center">
-  <img src="images/DPO/DPO_response.png" width="750" alt="DPO阶段模型完全遵循约束输出示例">
+  <img src="images/DPO/DPO_response.png" width="750" alt="DPO full adherence">
   <p><i>Figure: Checkpoint 175 achieving full adherence to all composite constraints after DPO preference alignment.</i></p>
 </div>`
 
