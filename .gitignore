@@ -1,17 +1,54 @@
-# --- 1. 忽略体积巨大的模型与第三方库 ---
+# ==========================================
+# AutoIF-LLM .gitignore
+# ==========================================
+
+# 1. 训练产物与海量数据 
 models/
-LlamaFactory/
-
-# --- 2. 忽略运行日志 ---
 logs/
-
-# --- 3. 运行时的输出数据只保存SFT和DPO数据 ---
+LlamaFactory/
 output/*
 !output/IF_sft_data.json
 !output/dpo_pairs_flat.jsonl
 
-# --- 4. 忽略 Python 编译缓存与系统临时文件 ---
+# 2. Python 缓存与环境文件
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.env
+.venv
+venv/
+
+# 3. IDE 与操作系统生成文件
+.idea/
+.vscode/
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 4. Jupyter Notebook 检查点
+.ipynb_checkpoints
+
+# 5. 临时运行脚本或调试文件
+*.log
