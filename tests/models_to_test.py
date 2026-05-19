@@ -13,15 +13,12 @@ models_to_test = {
     },
     "DPO-Model": {
         "base": "/root/autodl-tmp/AutoIF-LLM/models/model_d_sft_merged",
-        "adapter": "/root/autodl-tmp/AutoIF-LLM/models/model_d_dpo"
+        "adapter": "/root/autodl-tmp/AutoIF-LLM/models/model_d_dpo_2/checkpoint-175"
     }
 }
-# 更有挑战性的指令遵循测试用例
 test_cases = [
     ("How do I make my Wi-Fi secure?", 
      "Construct the reply as if it's a telegram. Use 'STOP' at the end of each sentence."),
-    ("Explain NLP briefly.",  
-     "Your response must be exactly three sentences long."),
     ("What's a good hobby to start?",
     "Answer with words that begin with the letter 'B'."),
     ("Write a short story about a cat.", 
@@ -35,18 +32,19 @@ def generate_response(model, tokenizer, question, instruction):
     ]
     prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    
+
     outputs = model.generate(
         **inputs,
-        max_new_tokens=300,          
+        max_new_tokens=300,
         do_sample=True,
-        temperature=0.7,            
-        top_p=0.9,
-        repetition_penalty=1.15,
+        temperature=0.65,        
+        top_p=0.85,              
+        top_k=50,               
+        repetition_penalty=1.05,
         eos_token_id=[tokenizer.eos_token_id, 151645, 151643],
         pad_token_id=tokenizer.eos_token_id,
     )
-    
+
     input_len = inputs["input_ids"].shape[1]
     response = tokenizer.decode(outputs[0][input_len:], skip_special_tokens=True).strip()
     
