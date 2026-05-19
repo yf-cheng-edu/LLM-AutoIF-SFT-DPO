@@ -67,7 +67,7 @@ AutoIF is designed to be **domain-agnostic**: simply swapping the seed instructi
 |---|---|
 | **Inference Engine** | vLLM 0.5.5 |
 | **Training Framework** | LLaMA-Factory |
-| **Teacher Model** | DeepSeek API |
+| **Teacher Model** | DeepSeek V4-Flash |
 | **Student Model** | Qwen2.5-1.5B-Instruct (3 GB) |
 | **NLI Filtering Model** | mDeBERTa-v3-base (2.5 GB) |
 | **Fine-tuning Method** | LoRA (SFT + DPO) |
