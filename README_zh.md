@@ -12,7 +12,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4.0-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Model](https://img.shields.io/badge/Student%20Model-Qwen2.5--1.5B-purple)](https://huggingface.co/Qwen)
-[![Powered by](https://img.shields.io/badge/Teacher%20Model-DeepSeek%20API-00BFFF)](https://platform.deepseek.com/)
+[![Powered by](https://img.shields.io/badge/Teacher%20Model-DeepSeek--V4--Flash-00BFFF)](https://platform.deepseek.com/)
 
 </div>
 
@@ -42,7 +42,7 @@
 
 **AutoIF-LLM** 是一个全自动化的微调框架，旨在通过 **执行反馈（Execution Feedback）** 和 **自我博弈（Self-Play）** 来显著提升大语言模型（LLM）的指令遵循能力。该框架采用“导师-学生（Teacher-Student）”架构以及多阶段数据合成流水线，仅需极少量的初始种子指令，即可自动生成高质量的监督微调（SFT）和直接偏好优化（DPO）数据 —— **全程无需任何人工标注**。
 
-本框架基于单张 GPU 运行，使用 **DeepSeek API** 作为导师模型，并通过 **LLaMA-Factory** 训练轻量级的学生模型（**Qwen2.5-1.5B-Instruct**），从而摆脱了对多节点复杂硬件基础设施的依赖。
+本框架基于单张 GPU 运行，使用 **DeepSeek-V4-Flash** 作为导师模型，并通过 **LLaMA-Factory** 训练轻量级的学生模型（**Qwen2.5-1.5B-Instruct**），从而摆脱了对多节点复杂硬件基础设施的依赖。
 
 AutoIF 具备强大的**领域通用性**：用户只需更换种子指令文件，即可为法律、金融、医疗、教育等 30 多个垂直领域定制专属的微调模型。
 
@@ -67,7 +67,7 @@ AutoIF 具备强大的**领域通用性**：用户只需更换种子指令文件
 |---|---|
 | **推理引擎** | vLLM 0.5.5 |
 | **训练框架** | LLaMA-Factory |
-| **导师（Teacher）模型** | DeepSeek API |
+| **导师（Teacher）模型** | DeepSeek-V4-Flash |
 | **学生（Student）模型** | Qwen2.5-1.5B-Instruct (3 GB) |
 | **NLI 过滤模型** | mDeBERTa-v3-base (2.5 GB) |
 | **微调方法** | LoRA (SFT + DPO) |
@@ -114,7 +114,7 @@ bash scripts/download_models.sh
 
 ### 步骤 3 — 配置 API 密钥
 
-数据合成依赖于 DeepSeek API，请在运行流水线前配置您的环境变量：
+数据合成依赖于 DeepSeek-V4-Flash，请在运行流水线前配置您的环境变量：
 
 ```bash
 export SUPERVISOR_API_KEY="YOUR_DEEPSEEK_API_KEY"
@@ -150,7 +150,7 @@ tail -f run.log
 
 | 阶段 | 描述 |
 | --- | --- |
-| **Stage 1** | AutoIF 9步 SFT 数据合成（通过 DeepSeek API） |
+| **Stage 1** | AutoIF 9步 SFT 数据合成 |
 | **Stage 2** | DPO 偏好对数据构建 |
 | **Stage 3** | 使用 LoRA 进行 SFT 监督微调训练 |
 | **Stage 4** | SFT Stage 的 LoRA 权重合并 |
@@ -643,7 +643,7 @@ AutoIF 具备强大的**领域通用性**：用户只需更换种子指令文件
 | **CUDA 版本** | 12.x |
 | **核心依赖** | PyTorch 2.4.0, vLLM 0.5.5 (固定版本) |
 | **磁盘空间** | ≥ 40 GB 剩余空间 |
-| **API 密钥** | 数据合成阶段需要配置 DeepSeek API Key (导师模型) |
+| **API 密钥** | 数据合成阶段需要配置 DeepSeek API Key |
 
 ### 步骤 1 — 克隆项目并配置环境
 
