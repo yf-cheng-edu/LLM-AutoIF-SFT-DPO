@@ -40,7 +40,7 @@
 
 ## 项目概述
 
-**AutoIF-LLM** 是一个全自动化的微调框架，旨在通过 **执行反馈（Execution Feedback）** 和 **自我博弈（Self-Play）** 来显著提升大语言模型（LLM）的指令遵循能力。该框架采用“导师-学生（Teacher-Student）”架构以及多阶段数据合成流水线，仅需极少量的初始种子指令，即可自动生成高质量的监督微调（SFT）和直接偏好优化（DPO）数据 —— **全程无需任何人工标注**。
+**AutoIF-LLM** 是一个全自动化的微调框架，旨在通过 **执行反馈（Execution Feedback）** 和 **自我博弈（Self-Play）** 来显著提升大语言模型（LLM）的指令遵循能力。该框架采用“教师-学生（Teacher-Student）”架构以及多阶段数据合成流水线，仅需极少量的初始种子指令，即可自动生成高质量的监督微调（SFT）和直接偏好优化（DPO）数据 —— **全程无需任何人工标注**。
 
 本框架基于单张 GPU 运行，使用 **DeepSeek-V4-Flash** 作为导师模型，并通过 **LLaMA-Factory** 训练轻量级的学生模型（**Qwen2.5-1.5B-Instruct**），从而摆脱了对多节点复杂硬件基础设施的依赖。
 
@@ -67,7 +67,7 @@ AutoIF 具备强大的**领域通用性**：用户只需更换种子指令文件
 |---|---|
 | **推理引擎** | vLLM 0.5.5 |
 | **训练框架** | LLaMA-Factory |
-| **导师（Teacher）模型** | DeepSeek-V4-Flash |
+| **教师（Teacher）模型** | DeepSeek-V4-Flash |
 | **学生（Student）模型** | Qwen2.5-1.5B-Instruct (3 GB) |
 | **NLI 过滤模型** | mDeBERTa-v3-base (2.5 GB) |
 | **微调方法** | LoRA (SFT + DPO) |
@@ -86,9 +86,9 @@ AutoIF 具备强大的**领域通用性**：用户只需更换种子指令文件
 | **操作系统** | Ubuntu 20.04 / 22.04 |
 | **Python 版本** | 3.10+ |
 | **CUDA 版本** | 12.x |
-| **核心依赖** | PyTorch 2.4.0, vLLM 0.5.5 (固定版本) |
+| **核心依赖** | PyTorch 2.4.0, vLLM 0.5.5 |
 | **磁盘空间** | ≥ 40 GB 剩余空间 |
-| **API 密钥** | 数据合成阶段需要配置 DeepSeek API Key (导师模型) |
+| **API 密钥** | 数据合成阶段需要配置 DeepSeek API Key |
 
 ### 步骤 1 — 克隆项目并配置环境
 
