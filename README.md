@@ -12,7 +12,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4.0-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Model](https://img.shields.io/badge/Student%20Model-Qwen2.5--1.5B-purple)](https://huggingface.co/Qwen)
-[![Powered by](https://img.shields.io/badge/Teacher%20Model-DeepSeek%20API-00BFFF)](https://platform.deepseek.com/)
+[![Powered by](https://img.shields.io/badge/Teacher%20Model-DeepSeek--V4--Flash-00BFFF)](https://platform.deepseek.com/)
 
 </div>
 
@@ -42,7 +42,7 @@
 
 **AutoIF-LLM** is a fully automated fine-tuning framework that enhances the instruction-following capabilities of large language models (LLMs) through **execution feedback** and **self-play**. Leveraging a teacher-student architecture and a multi-stage data synthesis pipeline, AutoIF generates high-quality Supervised Fine-Tuning (SFT) and Direct Preference Optimization (DPO) data from a minimal set of seed instructions — **with zero human annotation required**.
 
-The framework uses the **DeepSeek API** as the teacher model and fine-tunes a lightweight student model (**Qwen2.5-1.5B-Instruct**) via **LLaMA-Factory** on a single GPU, eliminating the need for multi-node infrastructure.
+The framework uses the **DeepSeek V4-Flash** as the teacher model and fine-tunes a lightweight student model (**Qwen2.5-1.5B-Instruct**) via **LLaMA-Factory** on a single GPU, eliminating the need for multi-node infrastructure.
 
 AutoIF is designed to be **domain-agnostic**: simply swapping the seed instruction file produces specialized models for over 30 vertical domains, including law, finance, medicine, and education.
 
@@ -88,7 +88,7 @@ AutoIF is designed to be **domain-agnostic**: simply swapping the seed instructi
 | **CUDA** | 12.x |
 | **Core Dependencies** | PyTorch 2.4.0, vLLM 0.5.5 (pinned versions) |
 | **Disk Space** | ≥ 40 GB available |
-| **DeepSeek API Key** | Required for the data synthesis stage (teacher model) |
+| **DeepSeek API Key** | Required for the data synthesis stage |
 
 ### Step 1 — Clone and Configure the Environment
 
@@ -150,7 +150,7 @@ tail -f run.log
 
 | Stage | Description |
 | --- | --- |
-| **Stage 1** | AutoIF 9-step SFT data synthesis (via DeepSeek API) |
+| **Stage 1** | AutoIF 9-step SFT data synthesis |
 | **Stage 2** | DPO preference pair construction |
 | **Stage 3** | SFT training with LoRA |
 | **Stage 4** | LoRA weight merging (SFT) |
@@ -216,7 +216,7 @@ llamafactory-cli train ../configs/llamafactory_dpo_lora.yaml
 # Merge DPO weights (using best-converging checkpoint-175)
 llamafactory-cli export \
   --model_name_or_path ../models/model_d_sft_merged \
-  --adapter_name_or_path ../models/model_d_dpo/checkpoint-175 \
+  --adapter_name_or_path ../models/model_d_dpo_2/checkpoint-175 \
   --export_dir ../models/model_d_dpo_merged \
   --finetuning_type lora \
   --template qwen
