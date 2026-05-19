@@ -411,7 +411,7 @@ Prior to alignment training, the unmodified base model fails multiple simultaneo
   <p><i>Figure: Model showing initial compliance with target format constraints after SFT fine-tuning.</i></p>
 </div>
 
-**DPO Stage — Checkpoint 175 (Full Constraint Adherence):** Through probabilistic alignment via preference pairs, the model fully internalizes all constraints (telegram format, exact three-sentence limit, all sentences beginning with 'B', all sentences beginning with 'T').
+**DPO Stage — Checkpoint 175 (Full Constraint Adherence):** Through probabilistic alignment via preference pairs, the model fully internalizes all constraints (telegram format, all sentences beginning with 'B', all sentences beginning with 'T').
 
 <div align="center">
   <img src="images/DPO/DPO_response.png" width="750" alt="DPO full adherence">
