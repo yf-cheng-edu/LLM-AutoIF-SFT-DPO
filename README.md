@@ -416,7 +416,7 @@ Prior to alignment training, the unmodified base model fails multiple simultaneo
 <div align="center">
   <img src="images/DPO/DPO_response.png" width="750" alt="DPO full adherence">
   <p><i>Figure: Checkpoint 175 achieving full adherence to all composite constraints after DPO preference alignment.</i></p>
-</div>`
+</div>
 
 ---
 
