@@ -59,7 +59,7 @@
 
 | 类别 | 详情说明 |
 | --- | --- |
-| **核心模型** | 教师：DeepSeek-V4-Flash | 学生：Qwen2.5-1.5B-Instruct | 辅助：mDeBERTa-v3-base |
+| **核心模型** | **教师：**DeepSeek-V4-Flash <br> **学生：**Qwen2.5-1.5B-Instruct <br> **辅助：**mDeBERTa-v3-base |
 | **微调框架** | LLaMA-Factory (LoRA SFT + DPO) |
 | **量化与部署** | Auto-GPTQ (INT4), vLLM 0.5.5 |
 | **硬件要求** | NVIDIA A800 (80 GB VRAM) 或同等规格，≥ 40 GB 剩余磁盘空间 |
