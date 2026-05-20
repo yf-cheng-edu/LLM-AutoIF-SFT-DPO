@@ -22,16 +22,16 @@
 
 - [项目概述](#项目概述)
 - [核心特性](#核心特性)
-- [技术栈](#技术栈)
+- [与环境要求](#技术栈与环境要求)
 - [安装指南](#安装指南)
 - [快速开始](#快速开始)
 - [领域适配](#领域适配)
 - [系统架构](#系统架构)
-- [训练指标](#训练指标)
+- [训练指标 & 评估结果](#训练指标 & 评估结果)
 - [评估结果](#评估结果)
 - [流水线统计数据](#流水线统计数据)
-- [项目结构](#项目结构)
 - [故障排除](#故障排除)
+- [项目结构](#项目结构)
 - [贡献指南](#贡献指南)
 - [论文引用](#论文引用)
 - [开源许可证](#开源许可证)
@@ -40,81 +40,59 @@
 
 ## 项目概述
 
-**AutoIF-LLM** 是一个全自动化的微调框架，旨在通过 **执行反馈（Execution Feedback）** 和 **自我博弈（Self-Play）** 来显著提升大语言模型（LLM）的指令遵循能力。该框架采用“教师-学生（Teacher-Student）”架构以及多阶段数据合成流水线，仅需极少量的初始种子指令，即可自动生成高质量的监督微调（SFT）和直接偏好优化（DPO）数据 —— **全程无需任何人工标注**。
+**AutoIF-LLM** 是一个全自动化的微调框架，旨在通过 **执行反馈（Execution Feedback）** 和 **自我博弈（Self-Play）** 显著提升大语言模型（LLM）的指令遵循能力。该框架采用“教师-学生（Teacher-Student）”架构以及多阶段数据合成流水线，仅需极少量的初始种子指令，即可自动生成高质量的监督微调（SFT）和直接偏好优化（DPO）数据 —— **全程无需人工标注**。
 
-本框架基于单张 GPU 运行，使用 **DeepSeek-V4-Flash** 作为教师模型，并通过 **LLaMA-Factory** 训练轻量级的学生模型（**Qwen2.5-1.5B-Instruct**），从而摆脱了对多节点复杂硬件基础设施的依赖。
-
-AutoIF 具备强大的**领域通用性**：用户只需更换种子指令文件，即可为法律、金融、医疗、教育等 30 多个垂直领域定制专属的微调模型。
-
-> **设计原理：** AutoIF 将大模型的执行反馈转化为可扩展的对齐信号。在 SFT 阶段被过滤掉的负面样本，将转化为高对比度的 DPO 拒绝（Rejected）样本，从而最大化偏好学习所需的边距信号（Margin Signal）。
+本框架具备强大的**领域通用性**，只需更换种子指令文件，即可为 30 多个垂直领域（如法律、金融、医疗等）定制专属的微调模型。
 
 ---
 
 ## 核心特性
 
-- **跨领域适配流水线** — 只需更换一个种子指令文件即可适配任何专业领域，开箱即用支持 30 多个内置领域模板。
-- **全自动化工作流** — 从原始种子指令到最终微调模型，全流程端到端自动执行，无需人工干预或审核。
-- **单卡轻量化兼容** — 完整工作流可在单张 NVIDIA A800 (80 GB) 上平稳运行，大幅降低了硬件门槛。
-- **执行验证确保数据质量** — 内置基于 Python 的自动化验证器，通过真实代码执行过滤训练样本，执行过滤器拒绝率达 ~71.7%，确保仅保留逻辑自洽且满足约束的样本。
-- **两阶段精准对齐** — 结合 SFT（高分样本过滤，综合得分 > 9）与 DPO（构建选中/拒绝偏好对，通过率差异 > 0.5），实现对复杂约束的精准遵循。
-- **灵活的提示词生成** — 同时支持 ShareGPT 风格的查询扩展以及教师模型模拟的响应生成。
+* **跨领域适配** — 开箱即用支持 30+ 内置垂直领域，更换种子文件即可自动生成领域微调数据。
+* **全自动化工作流** — 从原始种子指令到最终 INT4 量化部署，全流程端到端自动执行。
+* **单卡轻量化兼容** — 完整工作流可在单张 NVIDIA A800 (80 GB) 上平稳运行。
+* **执行验证确保质量** — 内置自动化 Python 代码执行验证器，拦截逾 70% 的逻辑不自洽样本。
+* **两阶段精准对齐** — 结合 SFT（综合得分 > 9 的高分样本）与 DPO（选取高对比度的失败样本构建偏好对），实现复杂约束的精准遵循。
 
 ---
 
-## 技术栈
+## 技术栈与环境要求
 
-| 组件 | 技术方案 |
-|---|---|
-| **推理引擎** | vLLM 0.5.5 |
-| **训练框架** | LLaMA-Factory |
-| **教师（Teacher）模型** | DeepSeek-V4-Flash |
-| **学生（Student）模型** | Qwen2.5-1.5B-Instruct (3 GB) |
-| **NLI 过滤模型** | mDeBERTa-v3-base (2.5 GB) |
-| **微调方法** | LoRA (SFT + DPO) |
-| **计算精度** | BF16 |
-| **运行环境** | Python 3.10+, CUDA 12.x, PyTorch 2.4.0 |
+| 类别 | 详情说明 |
+| --- | --- |
+| **核心模型** | 教师：DeepSeek-V4-Flash | 学生：Qwen2.5-1.5B-Instruct | 辅助：mDeBERTa-v3-base |
+| **微调框架** | LLaMA-Factory (LoRA SFT + DPO) |
+| **量化与部署** | Auto-GPTQ (INT4), vLLM 0.5.5 |
+| **硬件要求** | NVIDIA A800 (80 GB VRAM) 或同等规格，≥ 40 GB 剩余磁盘空间 |
+| **系统与环境** | Ubuntu 20.04/22.04, Python 3.10+, CUDA 12.x |
+
+> **提示：** 为避免依赖冲突，本项目采用**双环境架构**。基础训练在 `base` 环境中进行，而 INT4 量化与 vLLM 部署将在独立的 `gptq_env` 虚拟环境中进行。
 
 ---
 
 ## 安装指南
 
-### 环境要求
+### 步骤 1 — 初始化训练环境
 
-| 要求 | 技术规格 |
-|---|---|
-| **GPU 显存** | NVIDIA A800 (80 GB VRAM) 或同等规格 |
-| **操作系统** | Ubuntu 20.04 / 22.04 |
-| **Python 版本** | 3.10+ |
-| **CUDA 版本** | 12.x |
-| **核心依赖** | PyTorch 2.4.0, vLLM 0.5.5 |
-| **磁盘空间** | ≥ 40 GB 剩余空间 |
-| **API 密钥** | 数据合成阶段需要配置 DeepSeek API Key |
-
-### 步骤 1 — 克隆项目并配置环境
+运行一键配置脚本，自动安装基础训练依赖、LLaMA-Factory 框架，并完成数据集注册配置：
 
 ```bash
 bash scripts/setup.sh
 
 ```
 
-该脚本会自动执行：
+### 步骤 2 — 下载本地模型
 
-1. 安装支持 CUDA 12.1 的 PyTorch 2.4.0。
-2. 安装用于推理加速的 vLLM 0.5.5。
-3. 安装 LLaMA-Factory 作为后端训练框架。
-
-### 步骤 2 — 下载学生模型与过滤模型
+运行模型下载脚本，获取学生模型（Qwen2.5-1.5B-Instruct ）和 NLI 过滤模型（mDeBERTa-v3）：
 
 ```bash
 bash scripts/download_models.sh
 
 ```
 
-下载学生模型（Qwen2.5-1.5B-Instruct）和自然语言推理（NLI）过滤模型（mDeBERTa-v3）。
+### 步骤 3 — 配置导师 API 密钥
 
-### 步骤 3 — 配置 API 密钥
-
-数据合成依赖于 DeepSeek-V4-Flash，请在运行流水线前配置您的环境变量：
+数据合成强依赖 DeepSeek API，请在终端配置您的真实密钥：
 
 ```bash
 export SUPERVISOR_API_KEY="YOUR_DEEPSEEK_API_KEY"
@@ -127,16 +105,15 @@ export SUPERVISOR_API_KEY="YOUR_DEEPSEEK_API_KEY"
 
 ### 选项 A：一键式完整流水线
 
-使用编排脚本 `run_all.sh` 可以一键自动串联数据合成、SFT、DPO 以及 vLLM 部署测试，且原生支持垂直领域切换。
+使用编排脚本 `run_all.sh` 可以一键自动串联数据合成、SFT、DPO、INT4 量化以及 vLLM 部署测试，且原生支持垂直领域切换。
 
 ```bash
-# 通用领域训练（默认）
+# 通用领域训练
 bash scripts/run_all.sh
 
 # 领域特定微调
 bash scripts/run_all.sh --domain 法律
 bash scripts/run_all.sh --domain 金融
-bash scripts/run_all.sh --domain 医疗
 
 # 在后台运行并实时监控日志
 nohup bash scripts/run_all.sh --domain 法律 > run.log 2>&1 &
@@ -144,20 +121,16 @@ tail -f run.log
 
 ```
 
-> **注意：** 该脚本会自动处理 LLaMA-Factory 的数据集注册，并在模型部署前自动应用 Qwen 专属的 `rope_scaling` 兼容性补丁。
+> **注意：** 该脚本包含自动环境切换机制。在阶段 7 进行量化时，会自动激活独立的 `gptq_env` 虚拟环境。请确保您已提前创建该环境（详见选项 B - 阶段 5）。
 
-#### 流水线阶段说明
+#### 流水线 8 大自动阶段概览
 
-| 阶段 | 描述 |
-| --- | --- |
-| **Stage 1** | AutoIF 9步 SFT 数据合成 |
-| **Stage 2** | DPO 偏好对数据构建 |
-| **Stage 3** | 使用 LoRA 进行 SFT 监督微调训练 |
-| **Stage 4** | SFT Stage 的 LoRA 权重合并 |
-| **Stage 5** | 使用 LoRA 进行 DPO 偏好对齐训练 |
-| **Stage 6** | DPO Stage 的 LoRA 权重合并 |
-| **Stage 7** | 环境兼容性补丁修复 |
-| **Stage 8** | 离线推理验证与 vLLM 部署测试 |
+* **阶段 1：** AutoIF 数据合成（9 步 SFT 构造 + 3 步 DPO 构造及展平）。
+* **阶段 2 & 3：** SFT 监督微调训练与 LoRA 权重合并。
+* **阶段 4 & 5：** DPO 偏好对齐训练与 LoRA 权重合并。
+* **阶段 6：** 基础 / SFT / DPO 模型的离线效果比对。
+* **阶段 7：** 切换至 `gptq_env`，执行 GPTQ INT4 模型量化。
+* **阶段 8：** 启动 vLLM INT4 本地服务并进行 API 自动化测试。
 
 ---
 
@@ -167,7 +140,7 @@ tail -f run.log
 
 #### 阶段 1 — 数据合成 (AutoIF)
 
-本阶段将调用 DeepSeek API，通过 9 步（含 RFT 增强、验证器函数生成、回译过滤等）构建 SFT 数据，并通过 3 步构建 DPO 数据。
+本阶段将调用 DeepSeek API，通过 9 步构建 SFT 数据，并通过 3 步构建 DPO 数据。
 
 ```bash
 # SFT 数据构建 (步骤 1–9)
@@ -183,7 +156,7 @@ python code_dpo/2_dpo_data_query_construct.py
 
 #### 阶段 2 — SFT 微调与权重合并
 
-通过 LLaMA-Factory 使用 LoRA 微调 Qwen2.5-1.5B-Instruct。
+通过 LLaMA-Factory 使用 LoRA 微调。
 
 ```bash
 cd LlamaFactory
@@ -227,7 +200,7 @@ cd ..
 
 #### 阶段 4 — 兼容性补丁与评估
 
-应用相关修补脚本，解决 Qwen 模型权重合并后可能引发的 vLLM 兼容性报错。
+应用 Qwen 相关的兼容性补丁并测试文本生成：
 
 ```bash
 python patches/fix_config.py
@@ -238,33 +211,29 @@ python tests/models_to_test.py
 
 #### 阶段 5 — 虚拟环境配置与 GPTQ INT4 模型量化
 
-本项目涵盖了训练、量化和部署的全链路，各模块对底层依赖（如 `transformers`, `peft`, `optimum`）版本要求苛刻。**强烈建议使用独立的 Conda 虚拟环境进行量化与部署，避免依赖冲突。**
+由于量化与部署（如 `vllm`, `auto-gptq`）对底层依赖要求极度苛刻，**必须使用独立的 Conda 虚拟环境，并使用提供的 requirements 列表一键安装**。
 
 ```bash
-# 1. 创建并激活虚拟环境
+# 1. 创建并安全激活虚拟环境
 conda create -n gptq_env python=3.10 -y
+eval "$(conda shell.bash hook)"
 conda activate gptq_env
 
-# 2. 安装 PyTorch
-pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 -i [https://pypi.tuna.tsinghua.edu.cn/simple](https://pypi.tuna.tsinghua.edu.cn/simple)
+# 2. 一键安装预编译推理环境
+pip install -r requirements_gptq_vllm.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 3. 安装指定版本的核心依赖
-pip install transformers==4.44.2 peft==0.11.1 accelerate ninja optimum==1.21.0 -i [https://pypi.tuna.tsinghua.edu.cn/simple](https://pypi.tuna.tsinghua.edu.cn/simple)
+# 3. 针对 A800 架构强制源码编译 auto-gptq (解决算子不兼容问题)
+pip uninstall auto-gptq -y
+BUILD_CUDA_EXT=1 pip install auto-gptq -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 4. 源码编译 auto-gptq
-BUILD_CUDA_EXT=1 pip install auto-gptq -i [https://pypi.tuna.tsinghua.edu.cn/simple](https://pypi.tuna.tsinghua.edu.cn/simple)
-
-```
-
-为大幅降低推理显存，使用以下脚本将融合后的 BF16 模型量化为 INT4：
-```bash
+# 4. 执行 INT4 量化
 python tests/GPTQ.py
 
 ```
 
 #### 阶段 6 — vLLM 部署
 
-由于 transformers 4.44+ 的安全限制，我们需要手工创建并挂载 `chatml.jinja` 模板，同时在启动时将 dtype 设置为 `float16` 以兼容 GPTQ 算子。
+生成对话模板，并在 `gptq_env` 环境下启动 vLLM 后端服务。
 
 ```bash
 # 生成 Qwen 的 ChatML 对话模板
@@ -277,7 +246,7 @@ cat << 'EOF' > configs/chatml.jinja
 {% endif %}
 EOF
 
-# 启动 vLLM 后端服务
+# 启动 vLLM 后端服务 (需确保处于 gptq_env 虚拟环境中)
 vllm serve models/model_d_dpo_merged_gptq_int4 \
     --quantization gptq \
     --dtype float16 \
@@ -290,9 +259,10 @@ vllm serve models/model_d_dpo_merged_gptq_int4 \
 
 ```
 
-在新终端中运行 API 测试客户端：
+在新终端中激活环境并运行 API 测试客户端：
 
 ```bash
+eval "$(conda shell.bash hook)"
 conda activate gptq_env
 python tests/test_vllm.py
 
@@ -306,34 +276,23 @@ python tests/test_vllm.py
 
 ## 领域适配
 
-AutoIF 的核心创新在于：**只需更换种子指令文件，即可全自动生成高质量的特定垂直领域训练数据**。
-
-### 内置领域列表 (30+)
-
-| 领域大类 | 包含的垂直领域 |
-| --- | --- |
-| **基础科学** | 数学、物理、化学、生物、天文学、地理 |
-| **工程技术** | 土木工程、机械工程、电气工程、化学工程、材料科学、能源工程 |
-| **人文与社会科学** | 文学、历史、哲学、新闻学、社会学、心理学 |
-| **商业与管理** | 工商管理、会计、公共管理、电子商务、金融 |
-| **应用技术** | 法律、医学、教育、软件开发 |
-| **艺术与体育** | 美术、音乐、体育 |
+只需更换种子指令文件，即可全自动生成特定垂直领域的训练数据。
 
 ### 自定义领域配置
 
 ```bash
-# 列出所有可用的内置领域模板
+# 列出所有可用的内置领域模板 (30+)
 python scripts/generate_seed_instructions.py --list
 
-# 借助 LLM 为新的自定义领域自动生成初始种子指令
+# 借助 LLM 自动生成新领域的初始种子指令
 python scripts/generate_seed_instructions.py --domain 建筑设计 --use-llm
 
-# 为该自定义领域运行全自动微调流水线
+# 启动该领域的全自动微调流水线
 bash scripts/run_all.sh --domain 建筑设计
 
 ```
 
-> **贡献要求：** 若想贡献新的自定义领域模板，请将新条目添加至 `scripts/extended_domains.py` 中，并为该领域提供至少 **10 条具备代表性的初始种子指令**。
+> **贡献要求：** 若想贡献新的行业领域模板，请添加至 `scripts/extended_domains.py`，并提供至少 10 条代表性种子指令。
 
 ---
 
@@ -341,17 +300,12 @@ bash scripts/run_all.sh --domain 建筑设计
 
 ### 数据合成流水线（9 步法）
 
-| 步骤 | 操作说明 | 输入 → 输出样本变化 |
+| 步骤 | 操作说明 | 样本数量漏斗 |
 | --- | --- | --- |
-| **第 1 步** | RFT 指令数据增强 | 36 个初始种子 → 830 条扩展指令 |
-| **第 2 步** | 验证器函数（Validator Function）生成 | 830 + 36 = 866 条总指令 |
-| **第 3 步** | 交叉验证过滤（Cross-Validation） | 866 → 491 条指令 (通过率: 56.7%) |
-| **第 4 步** | 回译（Back-Translation）验证 | 491 条指令 |
-| **第 5 步** | NLI 一致性过滤 | 491 → 426 条指令 (保留率: 86.76%) |
-| **第 6 步** | 查询增强 + 响应数据批量生成 | 426 × ~10 提示词 × 5 响应 = 21,300 个候选样本 |
-| **第 7 步** | 基于代码执行的质量评分 | 21,300 → 6,031 条 (通过真实 Python 执行) |
-| **第 8 步** | 高质量 SFT 样本筛选 (得分 > 9) | 6,031 → 2,239 条高合规 SFT 样本 |
-| **第 9 步** | SFT 数据集格式构建 | 最终输出文件: `IF_sft_data.json` |
+| **第 1-2 步** | RFT 指令扩写与验证器函数生成 | 36 个初始种子 → 866 条总指令 |
+| **第 3-5 步** | 交叉验证、回译与 NLI 一致性过滤 | 866 → 426 条指令保留 |
+| **第 6-7 步** | 批量响应生成与真实代码执行打分 | 21,300 个候选 → 6,031 条验证通过 |
+| **第 8-9 步** | 高质量筛选 (综合评分 > 9) 与数据集构建 | 6,031 → 2,239 条 SFT 最终样本 |
 
 <div align="center">
   <img src="images/评分段数据分布统计.png" width="700" alt="AutoIF 数据合成得分分布图">
@@ -359,42 +313,23 @@ bash scripts/run_all.sh --domain 建筑设计
 
 ### DPO 偏好对构建机制
 
-为了保证负反馈信号的质量，DPO 流水线**特意绕过了**第 8 步的高分筛选机制，而是直接追溯回第 6 步的完整响应池。在 SFT 阶段因得分低而被丢弃的样本，在这里正好转化为高对比度的“拒绝（Rejected）”负例，从而在训练中提供极佳的偏好边界差异。
+为了最大化负反馈信号的边界对比度，DPO 流水线会回溯到第 6 步的候选池：将 SFT 阶段因得分极低（= 0）被丢弃的真实失败样本，直接转化为高对比度的 `rejected`（拒绝）负例。通过严格组合，最终合成 2,159 对高质量的偏好训练集。
 
-**DPO 步骤 1 (`1_dpo_rft_wash.py`):**
+### 核心训练超参数
 
-* 重新处理第 6 步产生的 4,260 个响应候选。
-* 运行验证器函数计算每个响应的准确率得分。
-* 输出格式为：`[response_text, accuracy_score]`。
-
-**DPO 步骤 2 (`2_dpo_data_query_construct.py`):**
-
-1. **正负样本分离：** 准确率得分 ≥ 0.5 的响应归为 `chosen`（选中）；得分 = 0 的响应归为 `rejected`（拒绝）。
-2. **配对条件：** 一个有效的偏好对，必须在同一个提示词（Prompt）下同时拥有至少一个 `chosen` 和一个 `rejected` 响应。
-3. **组合采样：** 每个提示词最多采样 2 个 `chosen` 和 2 个 `rejected` 响应，两两交叉组合生成所有有效的正负偏好对。
-
-### 训练超参数设置
-
-| 超参数名称 | SFT 微调阶段 | DPO 对齐阶段 |
-| --- | --- | --- |
-| **微调方法** | LoRA (rank=16, α=32) | LoRA (rank=16, α=32) |
-| **学习率 (Learning Rate)** | 5e-5 | 5e-6 |
-| **训练轮数 (Epochs)** | 3.0 | 2.0 |
-| **最大序列长度** | 2048 | 2048 |
-| **计算精度** | BF16 | BF16 |
-| **批次大小 (单卡 / 梯度累积)** | 4 / 4 | 2 / 8 |
-| **评估与保存频率** | 每 150 步一次 | 每 25 步一次 |
-| **学习率调度器** | Cosine (warmup_ratio=0.05) | Cosine (warmup_ratio=0.1) |
-| **LoRA 目标模块** | q, k, v, o, gate, up, down | q, k, v, o, gate, up, down |
-| **DPO Beta 系数** | — | 0.3 |
+* **微调方法：** LoRA (rank=16, α=32, target=q/k/v/o/gate/up/down)
+* **SFT 阶段：** 学习率 5e-5，Epochs 3.0，批次大小 4 (累积 4)，余弦调度。
+* **DPO 阶段：** 学习率 5e-6，Epochs 2.0，批次大小 2 (累积 8)，Beta 0.3。
 
 ---
 
-## 训练指标
+## 训练指标 & 评估结果
 
-### SFT 收敛曲线
+以下数据与图像源自项目的实际训练记录，直观展示了模型在 SFT 与 DPO 阶段的指标变化及能力跃升。
 
-SFT 训练过程非常平稳，未出现过拟合迹象。验证损失（Validation Loss）从 1.41 丝滑下降至 1.20，并在大约 350 步时趋于稳定。
+### 1. 训练曲线收敛情况
+
+**SFT 微调阶段：** 训练损失从 1.65 降至 0.94，验证损失从 1.41 丝滑下降至 1.20 左右。
 
 <table align="center">
   <tr>
@@ -409,9 +344,7 @@ SFT 训练过程非常平稳，未出现过拟合迹象。验证损失（Validat
   </tr>
 </table>
 
-### DPO 偏好对齐
-
-在 2 个 Epoch 的 DPO 偏好训练期间，奖励准确率（`Rewards/Accuracies`）稳步攀升并最终稳定在 **83%** 左右。评估损失在第 175 步达到最低点且未发生反弹；因此，系统最终选定 **`checkpoint-175`** 作为上产线的最终检查点。
+**DPO 对齐阶段：在 2 个 Epoch 的 DPO 偏好训练期间，奖励准确率稳步攀升并最终稳定在 **83%** 左右。评估损失在第 175 步达到最低点且未发生反弹；因此，系统最终选定 **`checkpoint-175`** 作为上产线的最终检查点。
 
 <table align="center">
   <tr>
@@ -430,31 +363,25 @@ SFT 训练过程非常平稳，未出现过拟合迹象。验证损失（Validat
   </tr>
 </table>
 
----
+### 2. 约束对齐效果演进图
 
-## 评估结果
+我们在高难度指令（并发多项格式、字符集及词法边界约束）下对三个阶段的模型进行了测试：
 
-以下对比结果清晰地展现了基座模型、SFT 对齐模型以及 DPO 对齐模型在高难度指令遵循基准测试中的实际约束表现。
-
-### 1. 基线（Baseline）：约束完全失效
-
-在进行对齐训练前，原生的基座模型在单词推理中无法同时满足多项并发约束，格式、字符集以及词法边界约束全部失效。
+**基线（Baseline）：约束完全失效**
 
 <div align="center">
   <img src="images/base/base_response.png" width="750" alt="基座模型约束完全失效输出示例">
-  <p><i>图：基座模型（Baseline）对多项并发约束完全失效的推理响应</i></p>
+  <p><i>图：基座模型对多项并发约束完全失效的推理响应</i></p>
 </div>
 
-### 2. 渐进式对齐成功
-
-**SFT 阶段（捕获基础约束）：** 模型成功掌握了目标格式约束（例如：输出全大写文本并正确添加 STOP 结束标记）。
+**SFT 阶段：捕获基础约束**（成功输出全大写文本并添加停止标记）
 
 <div align="center">
   <img src="images/SFT/SFT_response.png" width="750" alt="SFT阶段模型初步合规输出示例">
   <p><i>图：模型经过 SFT 微调后，已能初步捕获目标格式约束</i></p>
 </div>
 
-**DPO 阶段 — Checkpoint 175（完全化对齐）：** 通过基于偏好对的概率对齐，模型彻底内化了全部复合约束（满足电报体格式、所有句子均以 'B' 或 'T' 开头）。
+**DPO 阶段：完全化对齐**（完美内化全部复合约束，包括电报体和首字母限制）
 
 <div align="center">
   <img src="images/DPO/DPO_response.png" width="750" alt="DPO阶段模型完全遵循约束输出示例">
@@ -465,31 +392,27 @@ SFT 训练过程非常平稳，未出现过拟合迹象。验证损失（Validat
 
 ## 流水线统计数据
 
-以下数据源自 AutoDL 算力平台（单张 NVIDIA A800, 80 GB）运行通用领域微调基准测试的真实生产记录。
+*(基于通用领域基准，单张 NVIDIA A800 80GB 运行数据)*
 
-> **可重复性说明：** 由于大语言模型（LLM）的生成具有随机性，且 DPO 配对时采用了随机采样，因此独立多次运行后的绝对样本计数可能会有轻微浮动。
+| 数据漏斗节点 | 样本数量 | 备注说明 |
+| --- | --- | --- |
+| 初始种子池 | 36 | `seed_instruction.txt` 原始数据 |
+| 交叉过滤通过率 | 56.7% | 过滤逻辑冲突的增强指令 |
+| **执行器拒绝率** | **71.7%** | Python 物理执行拦截不合规响应 |
+| 最终 SFT 样本 | 2,239 | 综合评分极高的优选指令集 |
+| 最终 DPO 偏好对 | 2,159 | 完美满足选中/拒绝得分差异（≥ 0.5）的组合配对 |
 
-### 端到端数据流向统计
+---
 
-| 阶段 / 步骤 | 统计指标 | 样本计数 | 备注说明 |
-| --- | --- | --- | --- |
-| **第 0 步** | 原始种子指令数 | 36 | 基础初始种子集 |
-| **第 1 步** | RFT 增强指令数 | 830 | 扩展后的总指令池 |
-| **第 2 步** | 进入验证器构建的指令数 | 866 | 36 原始 + 830 增强 |
-| **第 3 步** | 交叉验证存活数 | 491 | 过滤通过率: 56.7% |
-| **第 5 步** | NLI 一致性过滤存活数 | 426 | 样本保留率: 86.76% |
-| **第 6 步** | 总查询/响应候选样本数 | 21,300 | 426 核心指令 × ~10 提示词 × 5 响应 |
-| **第 7 步** | 执行验证通过数 | 6,031 | 成功通过 Python 执行器的样本（Accuracy > 0） |
-| **第 8 步** | 高质量 SFT 训练样本数 | 2,239 | 综合评分 > 9 / 10 的核心样本 |
-| **DPO** | 最终 DPO 偏好对数量 | 2,159 | 完美满足选中/拒绝得分阈值（差异 ≥ 0.5） |
+## 故障排除
 
-### 执行过滤器拒绝率 (针对第 7 步)
+由于开源依赖库更新频繁，本项目内置了自动化兼容性补丁以解决常见的崩溃问题。这些补丁已在 `run_all.sh` 中自动执行。
 
-在第 6 步生成的 21,300 个候选响应样本中：
-
-* **通过 Python 真实执行验证：** 6,031 个样本
-* **被 Python 执行验证器拦截拒绝：** 15,269 个样本
-* **执行过滤器整体拒绝率高达：71.7%**
+| 补丁脚本 | 触发场景 | 解决机制 |
+| --- | --- | --- |
+| **`fix_qwen.py`** | vLLM 启动时报 `rope_scaling` 解析异常 | 自动向合并后模型的 `config.json` 中注入安全的缩放兼容字段。 |
+| **`fix_config.py`** | LLaMA-Factory 无法识别基座的位置编码参数 | 自动剔除阻碍 LoRA 微调解析的非标准配置属性。 |
+| **`dpo2_patches.py`** | DPO 数据源在微调框架内引发数组索引越界 | 将嵌套的 ShareGPT 对话树展平为一维的 Alpaca 字典结构。 |
 
 ---
 
@@ -497,74 +420,25 @@ SFT 训练过程非常平稳，未出现过拟合迹象。验证损失（Validat
 
 ```text
 AutoIF-LLM/
-├── .gitignore
-├── README.md
-├── README_zh.md
-├── requirements.txt               # 固定的 Python 依赖包列表
-├── code_dpo/                      # DPO 偏好对构建流水线代码
-│   ├── 1_dpo_rft_wash.py
-│   └── 2_dpo_data_query_construct.py
-├── code_sft/                      # AutoIF SFT 数据合成流水线代码
-│   ├── 1_RFT.py
-│   ├── ...
-│   ├── 9_sft_data_construction.py
-│   └── utils.py                   # 核心环境变量与配置常量
-├── configs/                       # LLaMA-Factory 训练与数据集配置文件
-│   ├── llamafactory_sft_lora.yaml
-│   ├── llamafactory_dpo_lora.yaml
-│   ├── llama_factory_dataset_info.json
-│   └── pipeline_config.yaml
-├── images/                        # 文档图表与评估结果图像资产
-│   ├── base/
-│   ├── DPO/
-│   └── SFT/
-├── output/                        # 运行期间的临时数据与最终数据集输出目录
-│   ├── dpo_pairs_flat.jsonl
-│   └── IF_sft_data.json
-├── patches/                       # 上游依赖环境兼容性补丁
-│   ├── dpo2_patches.py
-│   ├── fix_config.py
-│   └── fix_qwen.py
-├── sample_data/
-│   └── seed_instruction.txt       # 默认的初始种子指令文件
-├── scripts/                       # 自动化基础设施与环境初始化脚本
-│   ├── download_models.sh
-│   ├── extended_domains.py
-│   ├── generate_seed_instructions.py
-│   ├── run_all.sh
-│   └── setup.sh
-├── tests/                         # 推理验证与模型部署测试脚本
-│   ├── models_to_test.py
-│   └── test_vllm.py
-└── tools/
-    └── view_scores.py             # 数据质量得分可视化分析工具
+├── code_dpo/                 # DPO 偏好对构建流水线代码
+├── code_sft/                 # AutoIF 9步数据合成流水线代码
+├── configs/                  # 微调、量化与数据集配置文件
+├── images/                   # 评估与数据分布可视化图表
+├── patches/                  # 环境异常修补脚本
+├── sample_data/              # 各领域初始种子指令
+├── scripts/                  # 环境与全自动串联工作流脚本
+├── tests/                    # 离线验证与 vLLM 接口测试脚本
+└── tools/                    # 数据质量可视化工具
 
 ```
 
 ---
 
-## 故障排除
-
-由于上游开源依赖库更新过于频繁，环境可能偶尔出现冲突。AutoIF 在 `run_all.sh` 脚本中内置了三项兼容性补丁，会在流水线运行时自动应用。
-
-| 补丁脚本 | 触发条件 | 解决方案 | 手动执行命令 |
-| --- | --- | --- | --- |
-| **`fix_qwen.py`** | vLLM 启动时报 `rope_scaling` 校验错误并崩溃 | 自动向模型的 `config.json` 中注入 `{"factor": 1.0, "type": "default"}` 字段 | `python patches/fix_qwen.py ./models/model_d_dpo_merged` |
-| **`fix_config.py`** | 训练框架无法解析非标准的某些位置编码（Positional Encoding）字段 | 自动遍历 `models/` 下的模型配置并剔除不兼容的参数 | `python patches/fix_config.py` |
-| **`dpo2_patches.py`** | 嵌套的 ShareGPT 对话数组结构在微调框架中引发解析异常 | 将 DPO 数据平铺展平为更稳定的 Alpaca 格式并重新注册数据集 | `python patches/dpo2_patches.py` |
-
----
-
 ## 贡献指南
 
-非常欢迎社区提交贡献！请遵循标准的 GitHub 开发工作流：
-
-1. **Fork** 本仓库。
-2. 创建您的特性分支：`git checkout -b feature/your-feature-name`
-3. 提交更改，并编写清晰、具备描述性的 Commit 信息。
-4. 提交 **Pull Request** 指向本仓库的 `main` 分支。
-
-若是贡献新的行业领域模板，请将对应的领域信息添加至 `scripts/extended_domains.py` 中，并附带至少 **10 条代表性种子指令**。
+1. **Fork** 本仓库并创建特性分支：`git checkout -b feature/your-feature`。
+2. 提交具备描述性的 Commit，并向 `main` 分支发起 **Pull Request**。
+3. 贡献行业模板：请在 `scripts/extended_domains.py` 中添加，并提供 ≥ 10 条对应种子。
 
 ---
 
@@ -573,11 +447,12 @@ AutoIF-LLM/
 如果您在学术研究中使用了 AutoIF 框架，或者本项目对您的工作有所启发，请引用原作者的论文：
 
 ```bibtex
-@article{dong2024self,
+@inproceedings{dong2025self,
   title={Self-play with Execution Feedback: Improving Instruction-following Capabilities of Large Language Models},
   author={Dong, Guanting and Lu, Keming and Li, Chengpeng and Xia, Tingyu and Yu, Bowen and Zhou, Chang and Zhou, Jingren},
-  journal={arXiv preprint arXiv:2406.13542},
-  year={2024}
+  booktitle={The Thirteenth International Conference on Learning Representations},
+  year={2025},
+  url={https://arxiv.org/abs/2406.13542}
 }
 
 ```
@@ -589,4 +464,3 @@ AutoIF-LLM/
 本项目基于 **Apache License 2.0** 许可证开源。
 
 项目中所依赖的下游基础模型（如 Qwen2.5 系列、mDeBERTa-v3 等）受其各自原生开源许可证的约束。在进行任何商业化应用前，请务必仔细阅读并遵循相关模型的开源协议。
-
