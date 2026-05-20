@@ -1,0 +1,16 @@
+torch==2.4.0
+torchvision==0.19.0
+torchaudio==2.4.0
+transformers==4.42.4
+peft==0.11.1
+accelerate==1.13.0
+optimum==1.21.0
+ninja==1.13.0
+auto-gptq==0.7.1
+numpy==1.26.4
+tqdm==4.67.3
+safetensors==0.7.0
+huggingface-hub==0.36.2
+sentencepiece==0.2.1
+tokenizers==0.19.1
+vllm==0.5.5
