@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4.0-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![Model](https://img.shields.io/badge/Student%20Model-Qwen2.5--1.5B-purple)](https://huggingface.co/Qwen)
+[![Model](https://img.shields.io/badge/Student%20Model-Qwen2.5--1.5B--Instruct-purple)](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct)
 [![Powered by](https://img.shields.io/badge/Teacher%20Model-DeepSeek--V4--Flash-00BFFF)](https://platform.deepseek.com/)
 
 </div>
@@ -183,7 +183,7 @@ python code_dpo/2_dpo_data_query_construct.py
 
 #### 阶段 2 — SFT 微调与权重合并
 
-通过 LLaMA-Factory 使用 LoRA 微调 Qwen2.5-1.5B。
+通过 LLaMA-Factory 使用 LoRA 微调 Qwen2.5-1.5B-Instruct。
 
 ```bash
 cd LlamaFactory
@@ -236,21 +236,64 @@ python tests/models_to_test.py
 
 ```
 
-#### 阶段 5 — vLLM 部署与 API 测试
+#### 阶段 5 — 虚拟环境配置与 GPTQ INT4 模型量化
 
-使用高吞吐量推理引擎服务化最终的微调模型。
+本项目涵盖了训练、量化和部署的全链路，各模块对底层依赖（如 `transformers`, `peft`, `optimum`）版本要求苛刻。**强烈建议使用独立的 Conda 虚拟环境进行量化与部署，避免依赖冲突。**
 
 ```bash
-# 启动 vLLM 推理服务器
-vllm serve models/model_d_dpo_merged \
-  --dtype bfloat16 \
-  --port 8000 \
-  --host 0.0.0.0 \
-  --served-model-name qwen \
-  --max-model-len 4096 \
-  --gpu-memory-utilization 0.7
+# 1. 创建并激活虚拟环境
+conda create -n gptq_env python=3.10 -y
+conda activate gptq_env
 
-# 在另一个终端运行 API 测试脚本
+# 2. 安装 PyTorch
+pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 -i [https://pypi.tuna.tsinghua.edu.cn/simple](https://pypi.tuna.tsinghua.edu.cn/simple)
+
+# 3. 安装指定版本的核心依赖
+pip install transformers==4.44.2 peft==0.11.1 accelerate ninja optimum==1.21.0 -i [https://pypi.tuna.tsinghua.edu.cn/simple](https://pypi.tuna.tsinghua.edu.cn/simple)
+
+# 4. 源码编译 auto-gptq
+BUILD_CUDA_EXT=1 pip install auto-gptq -i [https://pypi.tuna.tsinghua.edu.cn/simple](https://pypi.tuna.tsinghua.edu.cn/simple)
+
+```
+
+为大幅降低推理显存，使用以下脚本将融合后的 BF16 模型量化为 INT4：
+```bash
+python tests/GPTQ.py
+
+```
+
+#### 阶段 6 — vLLM 部署
+
+由于 transformers 4.44+ 的安全限制，我们需要手工创建并挂载 `chatml.jinja` 模板，同时在启动时将 dtype 设置为 `float16` 以兼容 GPTQ 算子。
+
+```bash
+# 生成 Qwen 的 ChatML 对话模板
+cat << 'EOF' > configs/chatml.jinja
+{% for message in messages %}
+{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>\n' }}
+{% endfor %}
+{% if add_generation_prompt %}
+{{ '<|im_start|>assistant\n' }}
+{% endif %}
+EOF
+
+# 启动 vLLM 后端服务
+vllm serve models/model_d_dpo_merged_gptq_int4 \
+    --quantization gptq \
+    --dtype float16 \
+    --port 8000 \
+    --host 0.0.0.0 \
+    --served-model-name qwen \
+    --max-model-len 4096 \
+    --gpu-memory-utilization 0.7 \
+    --chat-template configs/chatml.jinja
+
+```
+
+在新终端中运行 API 测试客户端：
+
+```bash
+conda activate gptq_env
 python tests/test_vllm.py
 
 ```
@@ -456,6 +499,7 @@ SFT 训练过程非常平稳，未出现过拟合迹象。验证损失（Validat
 AutoIF-LLM/
 ├── .gitignore
 ├── README.md
+├── README_zh.md
 ├── requirements.txt               # 固定的 Python 依赖包列表
 ├── code_dpo/                      # DPO 偏好对构建流水线代码
 │   ├── 1_dpo_rft_wash.py
