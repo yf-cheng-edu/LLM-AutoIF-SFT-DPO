@@ -2,16 +2,16 @@
 
 # AutoIF-LLM
 
-**Optimizing Domain Models via AutoIF Data Synthesis and SFT+DPO Alignment**
+**Domain-Specific Model Optimization via AutoIF Data Synthesis and SFT+DPO Alignment**
 
-*Based on [Self-play with Execution Feedback (ICLR 2025 Spotlight)](https://arxiv.org/abs/2406.13542)*
+*Based on: [Self-play with Execution Feedback (ICLR 2025 Spotlight)](https://arxiv.org/abs/2406.13542)*
 
 ---
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4.0-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![Model](https://img.shields.io/badge/Student%20Model-Qwen2.5--1.5B-purple)](https://huggingface.co/Qwen)
+[![Model](https://img.shields.io/badge/Student%20Model-Qwen2.5--1.5B--Instruct-purple)](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct)
 [![Powered by](https://img.shields.io/badge/Teacher%20Model-DeepSeek--V4--Flash-00BFFF)](https://platform.deepseek.com/)
 
 </div>
@@ -22,16 +22,15 @@
 
 - [Project Overview](#project-overview)
 - [Key Features](#key-features)
-- [Tech Stack](#tech-stack)
+- [Tech Stack & Requirements](#tech-stack--requirements)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Domain Adaptation](#domain-adaptation)
-- [Architecture](#architecture)
-- [Training Metrics](#training-metrics)
-- [Evaluation Results](#evaluation-results)
+- [System Architecture](#system-architecture)
+- [Training Metrics & Evaluation](#training-metrics--evaluation)
 - [Pipeline Statistics](#pipeline-statistics)
-- [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
+- [Project Structure](#project-structure)
 - [Contributing](#contributing)
 - [Citation](#citation)
 - [License](#license)
@@ -40,155 +39,123 @@
 
 ## Project Overview
 
-**AutoIF-LLM** is a fully automated fine-tuning framework that enhances the instruction-following capabilities of large language models (LLMs) through **execution feedback** and **self-play**. Leveraging a teacher-student architecture and a multi-stage data synthesis pipeline, AutoIF generates high-quality Supervised Fine-Tuning (SFT) and Direct Preference Optimization (DPO) data from a minimal set of seed instructions — **with zero human annotation required**.
+**AutoIF-LLM** is a fully automated fine-tuning framework designed to significantly improve the instruction-following capabilities of large language models (LLMs) through **Execution Feedback** and **Self-Play**. The framework adopts a **Teacher-Student** architecture combined with a multi-stage data synthesis pipeline, capable of automatically generating high-quality Supervised Fine-Tuning (SFT) and Direct Preference Optimization (DPO) data from a minimal set of seed instructions — **entirely without human annotation**.
 
-The framework uses the **DeepSeek V4-Flash** as the teacher model and fine-tunes a lightweight student model (**Qwen2.5-1.5B-Instruct**) via **LLaMA-Factory** on a single GPU, eliminating the need for multi-node infrastructure.
-
-AutoIF is designed to be **domain-agnostic**: simply swapping the seed instruction file produces specialized models for over 30 vertical domains, including law, finance, medicine, and education.
-
-> **Design Rationale:** AutoIF converts execution feedback from large models into a scalable alignment signal. Negative samples filtered out during SFT become high-contrast rejected examples for DPO training, maximizing the margin signal required for effective preference learning.
+The framework offers strong **cross-domain generalizability**: simply swap the seed instruction file to automatically generate domain-specific fine-tuning data for any of 30+ vertical industries (e.g., legal, finance, healthcare).
 
 ---
 
 ## Key Features
 
-- **Domain-Agnostic Pipeline** — Replace a single seed instruction file to target any professional domain. Includes 30+ built-in domain templates out of the box.
-- **Fully Automated Workflow** — End-to-end execution from raw seed instructions to a fine-tuned model, with zero human labeling or review.
-- **Single-GPU Compatible** — The complete workflow runs on a single NVIDIA A800 (80 GB), significantly lowering the hardware barrier to entry.
-- **Execution-Verified Data Quality** — A Python-based automated validator filters training samples via real code execution, achieving a ~71.7% rejection rate to ensure only logically consistent, constraint-satisfying samples are retained.
-- **Two-Stage Alignment** — Combines SFT (high-score filtering, threshold > 9) with DPO (chosen/rejected pair construction, threshold > 0.5) for precise constraint-following behavior.
-- **Flexible Query Generation** — Supports both ShareGPT-style query augmentation and teacher-model-simulated response generation.
+- **Cross-Domain Adaptability** — Out-of-the-box support for 30+ built-in vertical domains; swap the seed file to auto-generate domain fine-tuning data.
+- **Fully Automated Workflow** — End-to-end automation from raw seed instructions to final INT4 quantization and deployment.
+- **Single-GPU Lightweight** — The complete workflow runs smoothly on a single NVIDIA A800 (80 GB).
+- **Execution-Verified Quality** — A built-in automated Python code execution validator filters out over 70% of logically inconsistent samples.
+- **Two-Stage Precision Alignment** — Combines SFT (high-scoring samples with composite score > 9) and DPO (high-contrast failure samples as rejected pairs) for precise instruction constraint following.
 
 ---
 
-## Tech Stack
+## Tech Stack & Requirements
 
-| Component | Technology |
-|---|---|
-| **Inference Engine** | vLLM 0.5.5 |
-| **Training Framework** | LLaMA-Factory |
-| **Teacher Model** | DeepSeek V4-Flash |
-| **Student Model** | Qwen2.5-1.5B-Instruct (3 GB) |
-| **NLI Filtering Model** | mDeBERTa-v3-base (2.5 GB) |
-| **Fine-tuning Method** | LoRA (SFT + DPO) |
-| **Compute Precision** | BF16 |
-| **Runtime Environment** | Python 3.10+, CUDA 12.x, PyTorch 2.4.0 |
+| Category | Details |
+| --- | --- |
+| **Core Models** | Teacher: DeepSeek-V4-Flash \| Student: Qwen2.5-1.5B-Instruct \| Auxiliary: mDeBERTa-v3-base |
+| **Fine-tuning Framework** | LLaMA-Factory (LoRA SFT + DPO) |
+| **Quantization & Deployment** | Auto-GPTQ (INT4), vLLM 0.5.5 |
+| **Hardware Requirements** | NVIDIA A800 (80 GB VRAM) or equivalent; ≥ 40 GB free disk space |
+| **System & Environment** | Ubuntu 20.04/22.04, Python 3.10+, CUDA 12.x |
+
+> **Note:** To avoid dependency conflicts, this project uses a **dual-environment architecture**. Base training runs in the `base` environment, while INT4 quantization and vLLM deployment are handled in a separate `gptq_env` virtual environment.
 
 ---
 
 ## Installation
 
-### Prerequisites
+### Step 1 — Initialize the Training Environment
 
-| Requirement | Specification |
-|---|---|
-| **GPU** | NVIDIA A800 (80 GB VRAM) or equivalent |
-| **Operating System** | Ubuntu 20.04 / 22.04 |
-| **Python** | 3.10+ |
-| **CUDA** | 12.x |
-| **Core Dependencies** | PyTorch 2.4.0, vLLM 0.5.5 (pinned versions) |
-| **Disk Space** | ≥ 40 GB available |
-| **DeepSeek API Key** | Required for the data synthesis stage |
-
-### Step 1 — Clone and Configure the Environment
+Run the one-click setup script to automatically install base training dependencies, the LLaMA-Factory framework, and register dataset configurations:
 
 ```bash
 bash scripts/setup.sh
-
 ```
 
-This script automatically:
+### Step 2 — Download Models Locally
 
-1. Installs PyTorch 2.4.0 with CUDA 12.1 support.
-2. Installs vLLM 0.5.5 for inference acceleration.
-3. Installs LLaMA-Factory as the backend training framework.
-
-### Step 2 — Download Student and Filtering Models
+Run the model download script to fetch the student model (Qwen2.5-1.5B-Instruct) and the NLI filtering model (mDeBERTa-v3):
 
 ```bash
 bash scripts/download_models.sh
-
 ```
 
-Downloads the student model (Qwen2.5-1.5B-Instruct) and the NLI filtering model (mDeBERTa-v3).
+### Step 3 — Configure the Teacher API Key
 
-### Step 3 — Configure the API Key
-
-Data synthesis relies on the DeepSeek API. Configure your key before running any pipeline:
+Data synthesis relies heavily on the DeepSeek API. Set your API key in the terminal:
 
 ```bash
 export SUPERVISOR_API_KEY="YOUR_DEEPSEEK_API_KEY"
-
 ```
 
 ---
 
 ## Quick Start
 
-### Option A: One-Command Full Pipeline
+### Option A: One-Click Full Pipeline
 
-The `run_all.sh` orchestration script automatically chains data synthesis, SFT, DPO, and vLLM deployment testing. It seamlessly supports domain switching.
+Use the orchestration script `run_all.sh` to automatically chain data synthesis, SFT, DPO, INT4 quantization, and vLLM deployment testing in one command, with native support for vertical domain switching.
 
 ```bash
-# General domain (default)
+# General-domain training
 bash scripts/run_all.sh
 
 # Domain-specific fine-tuning
-bash scripts/run_all.sh --domain 法律
-bash scripts/run_all.sh --domain 金融
-bash scripts/run_all.sh --domain 医疗
+bash scripts/run_all.sh --domain legal
+bash scripts/run_all.sh --domain finance
 
-# Run in the background with log monitoring
-nohup bash scripts/run_all.sh --domain 法律 > run.log 2>&1 &
+# Run in background with live log monitoring
+nohup bash scripts/run_all.sh --domain legal > run.log 2>&1 &
 tail -f run.log
-
 ```
 
-> **Note:** This script automatically handles LLaMA-Factory dataset registration and applies the Qwen `rope_scaling` compatibility patch before deployment.
+> **Note:** This script includes an automatic environment-switching mechanism. During Stage 7 (quantization), it will automatically activate the `gptq_env` virtual environment. Make sure you have created this environment in advance (see Option B — Stage 5).
 
-#### Pipeline Stages
+#### Pipeline: 8 Automated Stages at a Glance
 
-| Stage | Description |
-| --- | --- |
-| **Stage 1** | AutoIF 9-step SFT data synthesis |
-| **Stage 2** | DPO preference pair construction |
-| **Stage 3** | SFT training with LoRA |
-| **Stage 4** | LoRA weight merging (SFT) |
-| **Stage 5** | DPO training with LoRA |
-| **Stage 6** | LoRA weight merging (DPO) |
-| **Stage 7** | Environment compatibility patches |
-| **Stage 8** | Offline inference validation and testing with vLLM |
+- **Stage 1:** AutoIF data synthesis (9-step SFT construction + 3-step DPO construction and flattening).
+- **Stage 2 & 3:** SFT supervised fine-tuning and LoRA weight merging.
+- **Stage 4 & 5:** DPO preference alignment training and LoRA weight merging.
+- **Stage 6:** Offline comparison of Base / SFT / DPO model outputs.
+- **Stage 7:** Switch to `gptq_env` and perform GPTQ INT4 model quantization.
+- **Stage 8:** Launch vLLM INT4 local service and run automated API tests.
 
 ---
 
 ### Option B: Step-by-Step Manual Execution
 
-For users who wish to inspect pipeline internals or perform targeted debugging, each stage can be executed independently.
+If you want to inspect intermediate artifacts or perform targeted debugging, you can run each stage independently.
 
 #### Stage 1 — Data Synthesis (AutoIF)
 
-The synthesis stage calls the DeepSeek API and constructs SFT data across 9 steps (RFT augmentation, validator function generation, back-translation filtering, etc.) and DPO data across 3 steps.
+This stage calls the DeepSeek API to build SFT data across 9 steps and DPO data across 3 steps.
 
 ```bash
 # SFT data construction (Steps 1–9)
 python code_sft/1_RFT.py
-# ... execute steps 2 through 8 sequentially ...
+# ... run steps 2 through 8 sequentially ...
 python code_sft/9_sft_data_construction.py
 
 # DPO data construction
 python code_dpo/1_dpo_rft_wash.py
 python code_dpo/2_dpo_data_query_construct.py
-
 ```
 
-#### Stage 2 — SFT Fine-Tuning and Weight Merging
+#### Stage 2 — SFT Fine-Tuning & Weight Merging
 
-Fine-tune Qwen2.5-1.5B using LoRA via LLaMA-Factory.
+LoRA fine-tuning via LLaMA-Factory.
 
 ```bash
 cd LlamaFactory
 
-# Fine-tune with LoRA
+# Launch LoRA fine-tuning
 llamafactory-cli train ../configs/llamafactory_sft_lora.yaml
 
 # Merge LoRA weights into the base model
@@ -200,20 +167,19 @@ llamafactory-cli export \
   --template qwen
 
 cd ..
-
 ```
 
-#### Stage 3 — DPO Alignment and Weight Merging
+#### Stage 3 — DPO Alignment & Weight Merging
 
-Perform preference reinforcement learning on top of the merged SFT model.
+Preference reinforcement learning alignment on top of the merged SFT model.
 
 ```bash
 cd LlamaFactory
 
-# DPO training on top of the merged SFT model
+# DPO training based on the merged SFT model
 llamafactory-cli train ../configs/llamafactory_dpo_lora.yaml
 
-# Merge DPO weights (using best-converging checkpoint-175)
+# Merge DPO weights (select the best-converged checkpoint-175)
 llamafactory-cli export \
   --model_name_or_path ../models/model_d_sft_merged \
   --adapter_name_or_path ../models/model_d_dpo_2/checkpoint-175 \
@@ -222,37 +188,72 @@ llamafactory-cli export \
   --template qwen
 
 cd ..
-
 ```
 
-#### Stage 4 — Compatibility Patches and Evaluation
+#### Stage 4 — Compatibility Patches & Evaluation
 
-Apply patches to resolve vLLM compatibility issues that may arise after Qwen model merging.
+Apply Qwen-related compatibility patches and test text generation:
 
 ```bash
 python patches/fix_config.py
 python patches/fix_qwen.py models/model_d_dpo_merged
 python tests/models_to_test.py
-
 ```
 
-#### Stage 5 — vLLM Deployment and API Testing
+#### Stage 5 — Virtual Environment Setup & GPTQ INT4 Quantization
 
-Serve the final fine-tuned model using the high-throughput inference engine.
+Because quantization and deployment tools (such as `vllm` and `auto-gptq`) have strict dependency requirements, **you must use a separate Conda virtual environment and install dependencies via the provided requirements file**.
 
 ```bash
-# Launch the vLLM inference server
-vllm serve models/model_d_dpo_merged \
-  --dtype bfloat16 \
-  --port 8000 \
-  --host 0.0.0.0 \
-  --served-model-name qwen \
-  --max-model-len 4096 \
-  --gpu-memory-utilization 0.7
+# 1. Create and activate the virtual environment
+conda create -n gptq_env python=3.10 -y
+eval "$(conda shell.bash hook)"
+conda activate gptq_env
 
-# In a separate terminal, run the API test
+# 2. Install the prebuilt inference environment
+pip install -r requirements_gptq_vllm.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 3. Force source compilation of auto-gptq for A800 architecture (resolves kernel incompatibility)
+pip uninstall auto-gptq -y
+BUILD_CUDA_EXT=1 pip install auto-gptq -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 4. Run INT4 quantization
+python tests/GPTQ.py
+```
+
+#### Stage 6 — vLLM Deployment
+
+Generate the chat template and start the vLLM backend under `gptq_env`.
+
+```bash
+# Generate the Qwen ChatML conversation template
+cat << 'EOF' > configs/chatml.jinja
+{% for message in messages %}
+{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>\n' }}
+{% endfor %}
+{% if add_generation_prompt %}
+{{ '<|im_start|>assistant\n' }}
+{% endif %}
+EOF
+
+# Start the vLLM backend (ensure you are in the gptq_env environment)
+vllm serve models/model_d_dpo_merged_gptq_int4 \
+    --quantization gptq \
+    --dtype float16 \
+    --port 8000 \
+    --host 0.0.0.0 \
+    --served-model-name qwen \
+    --max-model-len 4096 \
+    --gpu-memory-utilization 0.7 \
+    --chat-template configs/chatml.jinja
+```
+
+In a new terminal, activate the environment and run the API test client:
+
+```bash
+eval "$(conda shell.bash hook)"
+conda activate gptq_env
 python tests/test_vllm.py
-
 ```
 
 <div align="center">
@@ -263,95 +264,59 @@ python tests/test_vllm.py
 
 ## Domain Adaptation
 
-AutoIF's core innovation lies in its ability to **automatically generate high-quality, domain-specific training data** simply by swapping the seed instruction file.
-
-### Built-in Domains (30+)
-
-| Category | Domains |
-| --- | --- |
-| **Basic Sciences** | Mathematics, Physics, Chemistry, Biology, Astronomy, Geography |
-| **Engineering** | Civil Engineering, Mechanical Engineering, Electrical Engineering, Chemical Engineering, Materials Science, Energy Engineering |
-| **Humanities & Social Sciences** | Literature, History, Philosophy, Journalism, Sociology, Psychology |
-| **Business & Management** | Business Administration, Accounting, Public Administration, E-Commerce, Finance |
-| **Applied Domains** | Law, Medicine, Education, Software Development |
-| **Arts & Sports** | Fine Arts, Music, Physical Education |
+Simply swap the seed instruction file to automatically generate training data for any specific vertical domain.
 
 ### Custom Domain Configuration
 
 ```bash
-# List all available built-in domain templates
+# List all available built-in domain templates (30+)
 python scripts/generate_seed_instructions.py --list
 
-# Automatically generate seed instructions for a new custom domain using an LLM
-python scripts/generate_seed_instructions.py --domain 建筑设计 --use-llm
+# Automatically generate seed instructions for a new domain using LLM
+python scripts/generate_seed_instructions.py --domain architecture-design --use-llm
 
-# Run the full automated fine-tuning pipeline for the custom domain
-bash scripts/run_all.sh --domain 建筑设计
-
+# Launch the fully automated fine-tuning pipeline for this domain
+bash scripts/run_all.sh --domain architecture-design
 ```
 
-> **Requirement:** For custom domain contributions, add the new domain entry to `scripts/extended_domains.py` and provide a minimum of **10 representative seed instructions** for that domain.
+> **Contribution Requirement:** To contribute a new industry domain template, add it to `scripts/extended_domains.py` with at least 10 representative seed instructions.
 
 ---
 
-## Architecture
+## System Architecture
 
-### Data Synthesis Pipeline (9 Steps)
+### Data Synthesis Pipeline (9-Step Method)
 
-| Step | Operation | Input → Output |
+| Step | Description | Sample Funnel |
 | --- | --- | --- |
-| **Step 1** | RFT Instruction Augmentation | 36 seeds → 830 new instructions |
-| **Step 2** | Validator Function Generation | 830 + 36 = 866 instructions |
-| **Step 3** | Cross-Validation Filtering | 866 → 491 (pass rate: 56.7%) |
-| **Step 4** | Back-Translation | 491 instructions |
-| **Step 5** | NLI Consistency Filtering | 491 → 426 (retention rate: 86.76%) |
-| **Step 6** | Query Augmentation + Response Generation | 426 × ~10 queries × 5 responses = 21,300 candidates |
-| **Step 7** | Execution-Based Quality Scoring | 21,300 → 6,031 (passing Python execution) |
-| **Step 8** | High-Quality SFT Sample Selection (Score > 9) | 6,031 → 2,239 SFT samples |
-| **Step 9** | SFT Dataset Construction | Output: `IF_sft_data.json` |
+| **Steps 1–2** | RFT instruction expansion and validator function generation | 36 seed instructions → 866 total instructions |
+| **Steps 3–5** | Cross-validation, back-translation, and NLI consistency filtering | 866 → 426 instructions retained |
+| **Steps 6–7** | Batch response generation and real code execution scoring | 21,300 candidates → 6,031 validated |
+| **Steps 8–9** | High-quality selection (composite score > 9) and dataset construction | 6,031 → 2,239 final SFT samples |
 
 <div align="center">
-  <img src="images/评分段数据分布统计.png" width="800" alt="AutoIF Data Synthesis Score Distribution Plot">
+  <img src="images/评分段数据分布统计.png" width="700" alt="AutoIF Data Synthesis Score Distribution">
 </div>
 
 ### DPO Preference Pair Construction
 
-The DPO pipeline **intentionally bypasses** the Step 8 high-score filter and traces back to the full response pool from Step 6. Samples filtered out during SFT become high-contrast negative examples that maximize the margin differential required for effective DPO preference learning.
+To maximize the contrast of negative feedback signals, the DPO pipeline traces back to the Step 6 candidate pool: samples that were discarded during SFT for extremely low scores (= 0) are directly repurposed as high-contrast `rejected` negatives. Through rigorous pairing, 2,159 high-quality preference training pairs are synthesized.
 
-**DPO Step 1 (`1_dpo_rft_wash.py`):**
+### Core Training Hyperparameters
 
-* Re-processes the 4,260 response candidates from Step 6.
-* Computes pass rate for each response using the validator function.
-* Output format: `[response_text, accuracy_score]`.
-
-**DPO Step 2 (`2_dpo_data_query_construct.py`):**
-
-1. **Separate positive/negative samples:** Responses with pass rate ≥ 0.5 → `chosen`; pass rate = 0 → `rejected`.
-2. **Pairing condition:** A valid pair requires at least one `chosen` and one `rejected` response under the same prompt.
-3. **Combination sampling:** Sample up to 2 `chosen` and up to 2 `rejected` responses per prompt, generating all valid positive-negative pairings.
-
-### Training Hyperparameters
-
-| Hyperparameter | SFT Stage | DPO Stage |
-| --- | --- | --- |
-| **Fine-tuning Method** | LoRA (rank=16, α=32) | LoRA (rank=16, α=32) |
-| **Learning Rate** | 5e-5 | 5e-6 |
-| **Epochs** | 3.0 | 2.0 |
-| **Max Sequence Length** | 2048 | 2048 |
-| **Compute Precision** | BF16 | BF16 |
-| **Batch Size (per device / grad acc)** | 4 / 4 | 2 / 8 |
-| **Eval & Save Frequency** | Every 150 steps | Every 25 steps |
-| **LR Scheduler** | Cosine (warmup_ratio=0.05) | Cosine (warmup_ratio=0.1) |
-| **LoRA Target Modules** | q, k, v, o, gate, up, down | q, k, v, o, gate, up, down |
-| **Beta (DPO)** | — | 0.3 |
+- **Fine-tuning Method:** LoRA (rank=16, α=32, target=q/k/v/o/gate/up/down)
+- **SFT Phase:** Learning rate 5e-5, Epochs 3.0, batch size 4 (gradient accumulation 4), cosine schedule.
+- **DPO Phase:** Learning rate 5e-6, Epochs 2.0, batch size 2 (gradient accumulation 8), Beta 0.3.
 
 ---
 
-## Training Metrics
+## Training Metrics & Evaluation
 
-### SFT Convergence
+The following data and figures are from the project's actual training logs, showing metric progression and capability improvements across the SFT and DPO phases.
 
-SFT training proceeds stably without overfitting. Validation loss decreases smoothly from 1.41 to 1.20, stabilizing at approximately step 350.
+### 1. Training Curve Convergence
+
+**SFT Phase:** Training loss decreased from 1.65 to 0.94; validation loss smoothly declined from 1.41 to approximately 1.20.
 
 <table align="center">
   <tr>
@@ -366,9 +331,7 @@ SFT training proceeds stably without overfitting. Validation loss decreases smoo
   </tr>
 </table>
 
-### DPO Preference Alignment
-
-Over 2 epochs of DPO training, reward accuracy (`Rewards/Accuracies`) climbs steadily and stabilizes at approximately **83%**. The evaluation loss reaches its minimum at step 175 without rebounding; accordingly, **`checkpoint-175`** is selected as the final production checkpoint.
+**DPO Phase:** Over 2 epochs of DPO preference training, reward accuracy steadily climbed and stabilized at approximately **83%**. Evaluation loss reached its minimum at step 175 without rebounding; therefore, **`checkpoint-175`** was selected as the final production checkpoint.
 
 <table align="center">
   <tr>
@@ -387,66 +350,56 @@ Over 2 epochs of DPO training, reward accuracy (`Rewards/Accuracies`) climbs ste
   </tr>
 </table>
 
----
+### 2. Constraint Alignment Progression
 
-## Evaluation Results
+We tested three model stages under challenging instructions with concurrent format, character set, and lexical boundary constraints:
 
-The following comparisons demonstrate constraint-following behavior across the base model, SFT-aligned model, and DPO-aligned model on a high-difficulty instruction-following benchmark.
-
-### 1. Baseline: Complete Constraint Failure
-
-Prior to alignment training, the unmodified base model fails multiple simultaneous constraints — including format, character set, and lexical boundary constraints — within a single inference run.
+**Baseline: All constraints fail**
 
 <div align="center">
-  <img src="images/base/base_response.png" width="750" alt="Baseline model failure">
-  <p><i>Figure: Inference response of the baseline model exhibiting complete constraint failure.</i></p>
+  <img src="images/base/base_response.png" width="750" alt="Baseline model output with complete constraint failure">
+  <p><i>The base model's response completely fails to follow multiple concurrent constraints</i></p>
 </div>
 
-### 2. Progressive Alignment Success
-
-**SFT Stage (Initial Compliance):** The model successfully captures target format constraints (e.g., all-uppercase output with STOP markers).
+**SFT Stage: Basic constraints captured** (successfully outputs all-uppercase text and appends stop tokens)
 
 <div align="center">
-  <img src="images/SFT/SFT_response.png" width="750" alt="SFT initial compliance">
-  <p><i>Figure: Model showing initial compliance with target format constraints after SFT fine-tuning.</i></p>
+  <img src="images/SFT/SFT_response.png" width="750" alt="SFT model output with initial constraint compliance">
+  <p><i>After SFT fine-tuning, the model begins to capture target format constraints</i></p>
 </div>
 
-**DPO Stage — Checkpoint 175 (Full Constraint Adherence):** Through probabilistic alignment via preference pairs, the model fully internalizes all constraints (telegram format, all sentences beginning with 'B', all sentences beginning with 'T').
+**DPO Stage: Full alignment achieved** (perfectly internalizes all compound constraints, including telegraphic style and initial-letter restrictions)
 
 <div align="center">
-  <img src="images/DPO/DPO_response.png" width="750" alt="DPO full adherence">
-  <p><i>Figure: Checkpoint 175 achieving full adherence to all composite constraints after DPO preference alignment.</i></p>
+  <img src="images/DPO/DPO_response.png" width="750" alt="DPO model output with full constraint compliance">
+  <p><i>After DPO preference alignment, Checkpoint 175 fully internalizes all compound constraints</i></p>
 </div>
 
 ---
 
 ## Pipeline Statistics
 
-The following figures represent real production data from a benchmark general-domain fine-tuning run on AutoDL (NVIDIA A800, 80 GB).
+*(Based on the general-domain benchmark, running on a single NVIDIA A800 80GB)*
 
-> **Reproducibility Note:** Due to stochastic generation in LLMs and random sampling during DPO pair construction, absolute counts may vary slightly across independent runs.
+| Pipeline Node | Sample Count | Notes |
+| --- | --- | --- |
+| Initial seed pool | 36 | Raw data from `seed_instruction.txt` |
+| Cross-filtering pass rate | 56.7% | Filters logically conflicting augmented instructions |
+| **Executor rejection rate** | **71.7%** | Python execution intercepts non-compliant responses |
+| Final SFT samples | 2,239 | High-scoring curated instruction set |
+| Final DPO preference pairs | 2,159 | Pairs meeting the chosen/rejected score gap (≥ 0.5) |
 
-### End-to-End Data Flow
+---
 
-| Stage | Metric | Count | Notes |
-| --- | --- | --- | --- |
-| **Step 0** | Raw seed instructions | 36 | Initial seed set |
-| **Step 1** | RFT-augmented instructions | 830 | Expanded instruction pool |
-| **Step 2** | Instructions entering validator construction | 866 | 36 original + 830 augmented |
-| **Step 3** | Cross-validation survivors | 491 | Pass rate: 56.7% |
-| **Step 5** | NLI consistency filter survivors | 426 | Retention rate: 86.76% |
-| **Step 6** | Total query/response candidates | 21,300 | 426 × ~10 queries × 5 responses |
-| **Step 7** | Execution-validated samples | 6,031 | Python execution filter (Accuracy > 0) |
-| **Step 8** | High-quality SFT samples | 2,239 | Composite score > 9 / 10 |
-| **DPO** | Final DPO preference pairs | 2,159 | Meeting chosen/rejected threshold (≥ 0.5) |
+## Troubleshooting
 
-### Execution Filter Rejection Rate (Step 7)
+Due to frequent updates in open-source dependencies, this project includes automated compatibility patches to resolve common crash scenarios. These patches are applied automatically within `run_all.sh`.
 
-Of the 21,300 candidate responses generated in Step 6:
-
-* **Passed Python execution validation:** 6,031 samples
-* **Rejected by Python validator:** 15,269 samples
-* **Execution filter rejection rate: 71.7%**
+| Patch Script | Trigger Condition | Resolution |
+| --- | --- | --- |
+| **`fix_qwen.py`** | `rope_scaling` parsing error when vLLM starts | Automatically injects safe scaling compatibility fields into the merged model's `config.json`. |
+| **`fix_config.py`** | LLaMA-Factory fails to parse positional encoding parameters | Automatically removes non-standard config attributes that block LoRA fine-tuning parsing. |
+| **`dpo2_patches.py`** | DPO data source causes array index out-of-bounds in the fine-tuning framework | Flattens nested ShareGPT conversation trees into flat Alpaca dictionary structures. |
 
 ---
 
@@ -454,94 +407,45 @@ Of the 21,300 candidate responses generated in Step 6:
 
 ```text
 AutoIF-LLM/
-├── .gitignore
-├── README.md
-├── requirements.txt               # Pinned Python dependencies
-├── code_dpo/                      # DPO preference pair pipeline
-│   ├── 1_dpo_rft_wash.py
-│   └── 2_dpo_data_query_construct.py
-├── code_sft/                      # AutoIF data synthesis pipeline
-│   ├── 1_RFT.py
-│   ├── ...
-│   ├── 9_sft_data_construction.py
-│   └── utils.py                   # Core environment variables and configuration constants
-├── configs/                       # LLaMA-Factory training configurations
-│   ├── llamafactory_sft_lora.yaml
-│   ├── llamafactory_dpo_lora.yaml
-│   ├── llama_factory_dataset_info.json
-│   └── pipeline_config.yaml
-├── images/                        # Documentation and evaluation result assets
-│   ├── base/
-│   ├── DPO/
-│   └── SFT/
-├── output/                        # Runtime data output directory
-│   ├── dpo_pairs_flat.jsonl
-│   └── IF_sft_data.json
-├── patches/                       # Environment compatibility patches
-│   ├── dpo2_patches.py
-│   ├── fix_config.py
-│   └── fix_qwen.py
-├── sample_data/
-│   └── seed_instruction.txt       # Default seed instruction file
-├── scripts/                       # Automation and environment initialization scripts
-│   ├── download_models.sh
-│   ├── extended_domains.py
-│   ├── generate_seed_instructions.py
-│   ├── run_all.sh
-│   └── setup.sh
-├── tests/                         # Test and deployment validation scripts
-│   ├── models_to_test.py
-│   └── test_vllm.py
-└── tools/
-    └── view_scores.py             # Data quality score visualization utility
-
+├── code_dpo/                 # DPO preference pair construction pipeline
+├── code_sft/                 # AutoIF 9-step data synthesis pipeline
+├── configs/                  # Fine-tuning, quantization, and dataset config files
+├── images/                   # Evaluation and data distribution visualizations
+├── patches/                  # Environment compatibility patch scripts
+├── sample_data/              # Domain-specific seed instructions
+├── scripts/                  # Environment setup and full automation workflow scripts
+├── tests/                    # Offline validation and vLLM API test scripts
+└── tools/                    # Data quality visualization tools
 ```
-
----
-
-## Troubleshooting
-
-Due to rapid updates in upstream dependencies, version conflicts may occasionally arise. AutoIF includes three built-in compatibility patches that `run_all.sh` applies automatically during full pipeline execution.
-
-| Script | Trigger Condition | Resolution | Manual Execution |
-| --- | --- | --- | --- |
-| **`fix_qwen.py`** | vLLM fails to start with `rope_scaling` validation error | Injects `{"factor": 1.0, "type": "default"}` into the model's `config.json` | `python patches/fix_qwen.py ./models/model_d_dpo_merged` |
-| **`fix_config.py`** | Training framework cannot parse non-standard positional encoding fields | Traverses all model configs under `models/` and removes incompatible parameters | `python patches/fix_config.py` |
-| **`dpo2_patches.py`** | Nested ShareGPT conversation arrays cause parsing errors during training | Flattens DPO data into the more stable Alpaca format and re-registers the dataset | `python patches/dpo2_patches.py` |
 
 ---
 
 ## Contributing
 
-Contributions are welcome. Please follow the standard GitHub workflow:
-
-1. **Fork** this repository.
-2. Create a feature branch: `git checkout -b feature/your-feature-name`
-3. Commit your changes with clear, descriptive commit messages.
-4. Open a **Pull Request** targeting the `main` branch.
-
-For domain template contributions, add your new entry to `scripts/extended_domains.py` and include a minimum of **10 representative seed instructions** for the target domain.
+1. **Fork** this repository and create a feature branch: `git checkout -b feature/your-feature`.
+2. Submit descriptive commits and open a **Pull Request** targeting the `main` branch.
+3. To contribute an industry domain template, add it to `scripts/extended_domains.py` with ≥ 10 representative seed instructions.
 
 ---
 
 ## Citation
 
-If you use AutoIF in academic research or build upon this project, please cite the original paper:
+If you use the AutoIF framework in academic research or if this project inspires your work, please cite the original paper:
 
 ```bibtex
-@article{dong2024self,
+@inproceedings{dong2025self,
   title={Self-play with Execution Feedback: Improving Instruction-following Capabilities of Large Language Models},
   author={Dong, Guanting and Lu, Keming and Li, Chengpeng and Xia, Tingyu and Yu, Bowen and Zhou, Chang and Zhou, Jingren},
-  journal={arXiv preprint arXiv:2406.13542},
-  year={2024}
+  booktitle={The Thirteenth International Conference on Learning Representations},
+  year={2025},
+  url={https://arxiv.org/abs/2406.13542}
 }
-
 ```
 
+---
 
 ## License
 
-This project is released under the **Apache License 2.0**.
+This project is open-sourced under the **Apache License 2.0**.
 
-Downstream foundation models used by this project (e.g., Qwen2.5 series, mDeBERTa-v3) are subject to their respective original licenses. Please review those licenses carefully before any commercial use.
-
+Downstream foundation models used in this project (such as the Qwen2.5 series and mDeBERTa-v3) are subject to their respective original open-source licenses. Please carefully review and comply with the relevant model licenses before any commercial use.
