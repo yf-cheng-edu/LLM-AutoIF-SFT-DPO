@@ -48,12 +48,12 @@ export SUPERVISOR_MODEL="deepseek-chat"
 export NLI_MODEL_PATH="./models/nli"
 export HF_ENDPOINT="https://hf-mirror.com"
 
-STUDENT_PATH="../models/student/Qwen/Qwen2.5-1.5B-Instruct"
+STUDENT_PATH="$PROJECT_DIR/models/student/Qwen/Qwen2.5-1.5B-Instruct"
 
 mkdir -p output logs
 
 # ================================================================
-# 阶段 1: AutoIF 数据合成 (通过 DeepSeek API)
+# 阶段 1: AutoIF 数据合成 
 # ================================================================
 echo ""
 echo "============================================"
@@ -130,7 +130,7 @@ llamafactory-cli train \
   --lora_rank 16 \
   --lora_alpha 32 \
   --lora_target q_proj,v_proj,k_proj,o_proj,gate_proj,up_proj,down_proj \
-  --output_dir ../models/model_d_sft \
+  --output_dir "$PROJECT_DIR/models/model_d_sft" \
   --per_device_train_batch_size 4 \
   --gradient_accumulation_steps 4 \
   --learning_rate 5e-5 \
@@ -142,28 +142,24 @@ llamafactory-cli train \
   --save_steps 150 \
   --logging_steps 5 \
   --plot_loss \
-  --overwrite_output_dir 2>&1 | tee ../logs/sft_train.log
+  --overwrite_output_dir 2>&1 | tee "$PROJECT_DIR/logs/sft_train.log"
 
 echo "============================================"
 echo "  阶段 3: SFT 模型合并"
 echo "============================================"
 llamafactory-cli export \
   --model_name_or_path "$STUDENT_PATH" \
-  --adapter_name_or_path ../models/model_d_sft \
-  --export_dir ../models/model_d_sft_merged \
+  --adapter_name_or_path "$PROJECT_DIR/models/model_d_sft" \
+  --export_dir "$PROJECT_DIR/models/model_d_sft_merged" \
   --finetuning_type lora \
-  --template qwen 2>&1 | tee ../logs/sft_merge.log
+  --template qwen 2>&1 | tee "$PROJECT_DIR/logs/sft_merge.log"
 
-
-# ================================================================
-# 阶段 4: DPO 训练与合并
-# ================================================================
 echo ""
 echo "============================================"
 echo "  阶段 4: DPO 训练"
 echo "============================================"
 llamafactory-cli train \
-  --model_name_or_path ../models/model_d_sft_merged \
+  --model_name_or_path "$PROJECT_DIR/models/model_d_sft_merged" \
   --stage dpo \
   --do_train \
   --dataset autoif_dpo \
@@ -189,46 +185,71 @@ llamafactory-cli train \
   --eval_strategy steps \
   --eval_steps 25 \
   --per_device_eval_batch_size 2 \
-  --overwrite_output_dir 2>&1 | tee ../logs/dpo_train.log
+  --overwrite_output_dir 2>&1 | tee "$PROJECT_DIR/logs/dpo_train.log"
 
 echo "============================================"
 echo "  阶段 5: DPO 模型合并 (使用最佳 Checkpoint-175)"
 echo "============================================"
 llamafactory-cli export \
-    --model_name_or_path ../models/model_d_sft_merged \
-    --adapter_name_or_path ../models/model_d_dpo_2/checkpoint-175 \
-    --export_dir ../models/model_d_dpo_merged \
+    --model_name_or_path "$PROJECT_DIR/models/model_d_sft_merged" \
+    --adapter_name_or_path "$PROJECT_DIR/models/model_d_dpo_2/checkpoint-175" \
+    --export_dir "$PROJECT_DIR/models/model_d_dpo_merged" \
     --finetuning_type lora \
-    --template qwen 2>&1 | tee ../logs/dpo_merge.log
-
-cd ..
+    --template qwen 2>&1 | tee "$PROJECT_DIR/logs/dpo_merge.log"
 
 
-# ================================================================
-# 阶段 6: 测试与部署
-# ================================================================
+cd "$PROJECT_DIR"
+
+
 echo ""
 echo "============================================"
-echo "  阶段 6: 基础/SFT/DPO 模型离线效果比对"
+echo "  阶段 6: 基础/SFT/DPO 模型效果比对"
 echo "============================================"
+python patches/fix_config.py
+python patches/fix_qwen.py "$PROJECT_DIR/models/model_d_dpo_merged"
 python tests/models_to_test.py 2>&1 | tee logs/offline_test.log
 
 echo ""
 echo "============================================"
-echo "  阶段 7: vLLM 服务部署与接口测试"
+echo "  阶段 7: 虚拟环境配置与 GPTQ INT4 模型量化"
 echo "============================================"
-echo "  🩹 正在应用 Qwen 模型 rope_scaling 补丁以防 vLLM 崩溃..."
-python patches/fix_config.py
-python patches/fix_qwen.py models/model_d_dpo_merged
 
-# 启动 vLLM 在后台运行
-vllm serve models/model_d_dpo_merged \
-    --dtype bfloat16 \
+# 1. 创建并激活虚拟环境
+eval "$(conda shell.bash hook)"
+conda activate gptq_env
+
+# 4. 源码编译 auto-gptq (强制本地编译以适配 A800 CUDA 环境)
+BUILD_CUDA_EXT=1 pip install auto-gptq -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+echo "  📦 正在对 DPO 合并模型进行 INT4 量化 (这可能需要几分钟)..."
+
+python tests/GPTQ.py 2>&1 | tee "$PROJECT_DIR/logs/gptq_quant.log"
+echo "  ✅ 量化完成！"
+
+echo ""
+echo "============================================"
+echo "  阶段 8: vLLM INT4 服务部署与接口测试"
+echo "============================================"
+# 生成 Qwen 的 ChatML 对话模板
+cat << 'EOF' > configs/chatml.jinja
+{% for message in messages %}
+{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>\n' }}
+{% endfor %}
+{% if add_generation_prompt %}
+{{ '<|im_start|>assistant\n' }}
+{% endif %}
+EOF
+
+# 启动 vLLM 在后台运行 
+vllm serve models/model_d_dpo_merged_gptq_int4 \
+    --quantization gptq \
+    --dtype float16 \
     --port 8000 \
     --host 0.0.0.0 \
     --served-model-name qwen \
     --max-model-len 4096 \
-    --gpu-memory-utilization 0.7 > logs/vllm_serve.log 2>&1 &
+    --gpu-memory-utilization 0.7 \
+    --chat-template configs/chatml.jinja > logs/vllm_serve.log 2>&1 &
 VLLM_PID=$!
 
 echo "  ⏳ 正在等待 vLLM 服务启动（预计 30-60 秒）..."

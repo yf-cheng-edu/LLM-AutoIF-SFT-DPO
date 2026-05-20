@@ -14,11 +14,9 @@ cd "$PROJECT_DIR"
 
 PIP_MIRROR="-i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn"
 
-echo "[1/4] 安装 Python 依赖..."
-pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 $PIP_MIRROR -q
-pip install -q $PIP_MIRROR transformers accelerate peft trl datasets openai jsonlines tqdm tenacity modelscope huggingface-hub safetensors tiktoken
-pip install vllm==0.5.5 -q $PIP_MIRROR
-echo "✅ 依赖安装完成"
+echo "[1/4] 安装训练环境依赖（base）..."
+pip install -r requirements_train.txt $PIP_MIRROR -q
+echo "✅ 训练依赖安装完成"
 
 echo "[2/4] 安装 LlamaFactory..."
 if [ ! -d "LlamaFactory" ]; then
@@ -47,4 +45,9 @@ fi
 
 echo "[4/4] 创建必要目录..."
 mkdir -p models/student output logs
-echo "✅ 环境配置完成！使用 scripts/download_models.sh 补充模型，然后运行 run_all.sh"
+echo "✅ 训练环境配置完成！使用 scripts/download_models.sh 补充模型，然后运行 scripts/run_all.sh"
+echo "  如需GPTQ + vLLM，请另行创建环境："
+echo "    conda create -n gptq_env python=3.10 -y"
+echo "    conda activate gptq_env"
+echo "    pip install -r requirements_gptq_vllm.txt -i https://pypi.tuna.tsinghua.edu.cn/simple"
+echo "=========================================="

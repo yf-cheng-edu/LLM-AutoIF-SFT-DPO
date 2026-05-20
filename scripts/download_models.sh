@@ -8,7 +8,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
-
+PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+MODEL_DIR=${MODEL_DIR:-"$PROJECT_DIR/models"}
 echo -e "${GREEN}🚀 AutoIF 模型下载脚本${NC}"
 echo "================================"
 
@@ -22,13 +23,13 @@ MODEL_DIR=${MODEL_DIR:-"../models"}
 mkdir -p $MODEL_DIR
 
 echo ""
-echo -e "${YELLOW}关于教师模型（用于数据生成）:${NC}"
+echo -e "${YELLOW}关于教师模型:${NC}"
 echo -e "当前配置为使用 DeepSeek API，因此跳过本地教师模型下载。"
 TEACHER_MODEL=""
 
 # 学生模型选择
 echo ""
-echo -e "${YELLOW}请选择学生模型（基础模型B）:${NC}"
+echo -e "${YELLOW}请选择学生模型:${NC}"
 echo "1) Qwen/Qwen2.5-1.5B-Instruct (当前流程使用此版本)"
 echo "2) Qwen/Qwen2.5-7B-Instruct (进阶，7B)"
 echo "3) 跳过（已有学生模型）"
