@@ -59,7 +59,7 @@ The framework offers strong **cross-domain generalizability**: simply swap the s
 
 | Category | Details |
 | --- | --- |
-| **Core Models** | Teacher: DeepSeek-V4-Flash \| Student: Qwen2.5-1.5B-Instruct \| Auxiliary: mDeBERTa-v3-base |
+| **Core Models** | **Teacher:** DeepSeek-V4-Flash <br> **Student:** Qwen2.5-1.5B-Instruct <br> **Auxiliary:** mDeBERTa-v3-base |
 | **Fine-tuning Framework** | LLaMA-Factory (LoRA SFT + DPO) |
 | **Quantization & Deployment** | Auto-GPTQ (INT4), vLLM 0.5.5 |
 | **Hardware Requirements** | NVIDIA A800 (80 GB VRAM) or equivalent; ≥ 40 GB free disk space |
