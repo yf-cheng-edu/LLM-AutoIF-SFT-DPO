@@ -120,6 +120,7 @@ echo "============================================"
 echo "  阶段 2: SFT 训练"
 echo "============================================"
 cd LlamaFactory
+cd LlamaFactory
 llamafactory-cli train \
   --model_name_or_path "$STUDENT_PATH" \
   --stage sft \
@@ -142,8 +143,12 @@ llamafactory-cli train \
   --save_steps 150 \
   --logging_steps 5 \
   --plot_loss \
+  --val_size 0.1 \
+  --eval_strategy steps \
+  --eval_steps 50 \
+  --per_device_eval_batch_size 4 \
   --overwrite_output_dir 2>&1 | tee "$PROJECT_DIR/logs/sft_train.log"
-
+  
 echo "============================================"
 echo "  阶段 3: SFT 模型合并"
 echo "============================================"
