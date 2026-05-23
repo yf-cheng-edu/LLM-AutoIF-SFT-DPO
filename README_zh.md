@@ -285,12 +285,6 @@ python tests/test_vllm.py
 python tests/evaluate_hf_batched.py
 ```
 
-| 模型 | 指令遵循准确率 | 总耗时 | 并发速度 |
-| --- | --- | --- | --- |
-| Base-Model | 21.50% | 81.69 秒 | 104.58 tokens/s |
-| SFT-Model | 28.00% | 45.46 秒 | 131.80 tokens/s |
-| DPO-Model | 38.00% | 51.01 秒 | 111.82 tokens/s |
-
 **方案 B（可选）：Transformers 批处理评测 GPTQ 模型（需独立 hf_eval 环境）**
 
 由于 GPTQ 量化库与 base 环境存在依赖冲突，需单独创建环境：
@@ -314,13 +308,6 @@ conda activate gptq_env
 python tests/evaluate_vllm.py
 ```
 
-| 模型 | 指令遵循准确率 | 总耗时 | 并发速度 |
-| --- | --- | --- | --- |
-| Base-Model | 19.50% | 7.44 秒 | 1084.19 tokens/s |
-| SFT-Model | 28.50% | 7.05 秒 | 831.59 tokens/s |
-| DPO-Model | 37.00% | 7.02 秒 | 773.42 tokens/s |
-| GPTQ-Model | 36.00% | 8.70 秒 | **1467.55 tokens/s** |
-
 > vLLM 对 GPTQ 模型的推理速度约为原生 Transformers 的 **33 倍**，且四模型可在同一环境下一键串联评测。
 
 #### 阶段 8 — LLM-as-a-Judge 全面对比
@@ -332,11 +319,6 @@ python tests/evaluate_vllm.py
 python tools/llm_judge_all.py
 # 输出：output/all_models_judge_results.json
 ```
-
-| 对决组合 | 胜者胜率 | 败者胜率 | 平局率 |
-| --- | --- | --- | --- |
-| Base vs SFT | SFT **46.50%** | Base 33.50% | 20.00% |
-| Base vs DPO | DPO **43.50%** | Base 38.50% | 18.00% |
 
 ---
 
@@ -454,41 +436,78 @@ bash scripts/run_all.sh --domain 建筑设计
   <p><i>图：Checkpoint 175 经过 DPO 偏好对齐后，完全 internalization 了所有复合约束</i></p>
 </div>
 
----
-
 ### 3. 量化评测与 LLM Judge 汇总
 
-以下数据基于从合成数据集提取的 200 条标准测试集，综合对比了各训练阶段模型的指令遵循能力进化路径：
+以下数据基于从合成数据集提取的 200 条标准测试集，综合对比了各训练阶段模型的指令遵循能力进化路径，以及不同推理后端的性能表现：
 
-**指令遵循准确率（vLLM 评测）**
+#### 3.1 指令遵循准确率与推理吞吐量 (vLLM vs Transformers)
 
-| 模型 | 准确率 | 推理速度 |
-| --- | --- | --- |
-| Base-Model（训练前基线） | 19.50% | 1084 tokens/s |
-| SFT-Model（监督微调后） | 28.50% | 832 tokens/s |
-| DPO-Model（偏好对齐后） | 37.00% | 773 tokens/s |
-| GPTQ-Model（INT4 量化后） | 35.50% | **1482 tokens/s** |
+下表汇总了各个模型在 vLLM 推理框架下的最终战绩（数据见下方原始战报截图）：
 
-> DPO 对齐相比基座模型准确率提升 **+17.5 个百分点**；GPTQ INT4 量化在准确率几乎无损（-1.5%）的前提下，推理吞吐量提升约 **2×**。
-
-**LLM-as-a-Judge 两两对比胜率**
-
-| 对决组合 | 左侧胜率 | 右侧胜率 | 平局率 |
+| 模型 | 准确率 | 总耗时 | 批量并发速度 (vLLM) |
 | --- | --- | --- | --- |
-| Base vs SFT | 33.50% | **46.50%** | 20.00% |
-| Base vs DPO | 38.50% | **43.50%** | 18.00% |
+| Base-Model（训练前基线） | 19.50% | 7.44 秒 | 1084.19 tokens/s |
+| SFT-Model（监督微调后） | 28.50% | 7.05 秒 | 831.59 tokens/s |
+| DPO-Model（偏好对齐后） | 37.00% | 7.02 秒 | 773.42 tokens/s |
+| GPTQ-Model（INT4 量化后） | 36.00% | 8.70 秒 | **1467.55 tokens/s** |
 
-## 流水线统计数据
+> 💡 **核心分析：**
+> 1. **能力跃升**：从 Base -> SFT -> DPO，指令遵循准确率稳步上升。DPO 偏好对齐相比基座模型准确率大幅提升了 **+17.5 个百分点**（19.5% -> 37%），证明了人类偏好对齐训练的有效性。
+> 2. **量化加速**：GPTQ INT4 量化在准确率几乎无损（36.00%，仅回落1%）的前提下，将推理吞吐量激增至 **近 1500 tokens/s**，实现了相较于对齐模型约 **2 倍** 的推理加速。
 
-*(基于通用领域基准，单张 NVIDIA A800 80GB 运行数据)*
+<details>
+<summary>👉 <b>点击展开查看：各模型详细战报截图 (vLLM 与 Transformers 框架对比)</b></summary>
+<br>
 
-| 数据漏斗节点 | 样本数量 | 备注说明 |
-| --- | --- | --- |
-| 初始种子池 | 36 | `seed_instruction.txt` 原始数据 |
-| 交叉过滤通过率 | 56.7% | 过滤逻辑冲突的增强指令 |
-| **执行器拒绝率** | **71.7%** | Python 物理执行拦截不合规响应 |
-| 最终 SFT 样本 | 2,239 | 综合评分极高的优选指令集 |
-| 最终 DPO 偏好对 | 2,159 | 完美满足选中/拒绝得分差异（≥ 0.5）的组合配对 |
+*注：对比发现，vLLM 在并发推理上展现了碾压级的优势，特别是针对 GPTQ 量化模型，Transformers 原生批处理速度仅为 45.38 tokens/s，而 vLLM 飙升至 1467.55 tokens/s。*
+
+**1. Base-Model (基座模型)**
+<div align="center">
+  <img src="./images/base/vll_base.png" width="48%" title="Base vLLM">
+  <img src="./images/base/transformer_base.png" width="48%" title="Base Transformers">
+</div>
+
+**2. SFT-Model (监督微调)**
+<div align="center">
+  <img src="./images/SFT/vllm_SFT.png" width="48%" title="SFT vLLM">
+  <img src="./images/SFT/transformer_sft.png" width="48%" title="SFT Transformers">
+</div>
+
+**3. DPO-Model (偏好对齐)**
+<div align="center">
+  <img src="./images/DPO/vllm_DPO.png" width="48%" title="DPO vLLM">
+  <img src="./images/DPO/transformer_DPO.png" width="48%" title="DPO Transformers">
+</div>
+
+**4. GPTQ-Model (INT4 量化)**
+<div align="center">
+  <img src="./images/GPTQ_model/vllm_GPTQ_model.png" width="48%" title="GPTQ vLLM">
+  <img src="./images/GPTQ_model/transformer_GPTQ_model.png" width="48%" title="GPTQ Transformers">
+</div>
+
+</details>
+
+---
+
+#### 3.2 LLM-as-a-Judge 两两对比胜率
+
+除了客观的指令遵循测试，我们还通过 LLM Judge 进行了盲测对决，进一步验证模型回复的综合质量（语气、连贯性、信息量）：
+
+| 对决组合 | 左侧模型胜率 | 右侧模型胜率 | 平局率 (Tie) |
+| --- | --- | --- | --- |
+| 【Base】 vs 【SFT】 | 33.50% | **46.50%** | 20.00% |
+| 【Base】 vs 【DPO】 | 38.50% | **43.50%** | 18.00% |
+| 【Base】 vs 【GPTQ】 | 41.00% | **47.50%** | 11.50% |
+
+**📊 胜率战报截图：**
+<div align="center">
+  <img src="./images/base_vs_SFT&DPO.png" width="48%" title="Base vs SFT & DPO">
+  <img src="./images/base_vs_GPTQ_model.png" width="48%" title="Base vs GPTQ">
+</div>
+
+> 💡 **核心分析：**
+> * 相比于基线模型，经过微调和对齐的模型（SFT & DPO）在直接对比中均占据了显著优势。
+> * 值得注意的是，**GPTQ 量化模型不仅没有导致回复质量断崖式下跌，反而能在与 Base 的直接对决中取得 47.50% 的高胜率**。这表明当前的 INT4 量化方案极好地保留了模型的泛化能力和语义连贯性，真正做到了“又快又好”。
 
 ---
 
