@@ -1,3 +1,8 @@
+<p align="right">
+  <a href="./README.md"><img alt="README in English" src="https://img.shields.io/badge/English-blue"></a>
+  <a href="./README_zh.md"><img alt="简体中文语言的 README" src="https://img.shields.io/badge/简体中文-d9d9d9"></a>
+</p>
+
 <div align="center">
 
 # AutoIF-LLM
