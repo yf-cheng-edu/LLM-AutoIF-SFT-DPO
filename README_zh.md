@@ -455,11 +455,8 @@ bash scripts/run_all.sh --domain 建筑设计
 > 1. **能力跃升**：从 Base -> SFT -> DPO，指令遵循准确率稳步上升。DPO 偏好对齐相比基座模型准确率大幅提升了 **+17.5 个百分点**（19.5% -> 37%），证明了人类偏好对齐训练的有效性。
 > 2. **量化加速**：GPTQ INT4 量化在准确率几乎无损（36.00%，仅回落1%）的前提下，将推理吞吐量激增至 **近 1500 tokens/s**，实现了相较于对齐模型约 **2 倍** 的推理加速。
 
-<details>
-<summary>👉 <b>点击展开查看：各模型详细战报截图 (vLLM 与 Transformers 框架对比)</b></summary>
-<br>
-
-*注：对比发现，vLLM 在并发推理上展现了碾压级的优势，特别是针对 GPTQ 量化模型，Transformers 原生批处理速度仅为 45.38 tokens/s，而 vLLM 飙升至 1467.55 tokens/s。*
+**📊 各模型详细战报截图对比如下：**
+*(注：对比发现，vLLM 在并发推理上展现了碾压级的优势，特别是针对 GPTQ 量化模型，Transformers 原生批处理速度仅为 45.38 tokens/s，而 vLLM 飙升至 1467.55 tokens/s。)*
 
 **1. Base-Model (基座模型)**
 <div align="center">
@@ -484,8 +481,6 @@ bash scripts/run_all.sh --domain 建筑设计
   <img src="./images/GPTQ_model/vllm_GPTQ_model.png" width="48%" title="GPTQ vLLM">
   <img src="./images/GPTQ_model/transformer_GPTQ_model.png" width="48%" title="GPTQ Transformers">
 </div>
-
-</details>
 
 ---
 
