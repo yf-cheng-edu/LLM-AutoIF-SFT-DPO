@@ -430,7 +430,6 @@ We tested three model stages under challenging instructions with concurrent form
   <p><i>After DPO preference alignment, Checkpoint 175 fully internalizes all compound constraints</i></p>
 </div>
 
----
 
 ### 3. Quantitative Evaluation & LLM Judge Summary
 
@@ -478,7 +477,6 @@ The table below summarizes the final results of each model under the vLLM infere
   <img src="./images/GPTQ_model/transformer_GPTQ_model.png" width="48%" title="GPTQ Transformers">
 </div>
 
----
 
 #### 3.2 LLM-as-a-Judge Pairwise Win Rates
 
