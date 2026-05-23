@@ -77,7 +77,7 @@ python code_sft/5_eval_func_backtranslator_filter.py 2>&1 | tee logs/step5.log
 
 echo "[Step 6/9] 查询增强与响应生成..."
 python code_sft/6_concat_sharegpt_query.py 2>&1 | tee logs/step6.log
-
+python tools/extract_test_set.py 2>&1 | tee logs/step6.log
 echo "[Step 7/9] 查询验证与质量评分..."
 python code_sft/7_query_verification.py 2>&1 | tee logs/step7.log
 
@@ -272,6 +272,64 @@ python tests/test_vllm.py 2>&1 | tee logs/vllm_test.log
 # 测试结束后关闭服务释放显存
 echo "  🛑 测试完毕，正在关闭 vLLM 进程..."
 kill $VLLM_PID || true
+
+
+echo ""
+echo "=========================================="
+echo "  Step 10: Transformers 批处理评测（Base / SFT / DPO）"
+echo "=========================================="
+python tests/evaluate_hf_batched.py
+echo "✅ HF 批处理评测完成 -> output/dpo_alignment_compare_hf_batched.json"
+
+# ============================================================
+# Step 11（可选）: GPTQ 模型评测（需单独的 hf_eval 环境）
+# ============================================================
+# GPTQ 与 base 环境存在依赖冲突，需在独立 conda 环境中运行。
+# 请手动执行以下步骤：
+#
+#   conda create -n hf_eval python=3.10 -y
+#   conda activate hf_eval
+#   pip install -r requirments_GPTQ_model_hf_eval.txt \
+#       -i https://pypi.tuna.tsinghua.edu.cn/simple
+#
+# 然后将 tests/evaluate_hf_batched.py 中 models_to_test 改为只保留
+# GPTQ-Model 那一项，再运行：
+#   python tests/evaluate_hf_batched.py
+#
+# 注意：GPTQ 在原生 Transformers 下速度较慢（约 45 tokens/s），
+# 这是计算图额外开销 + 内存访存瓶颈导致的，属于正常现象。
+# 推荐改用 Step 12 的 vLLM 方案获得最优速度（约 1482 tokens/s）。
+echo ""
+echo "⚠️  Step 11 (GPTQ/hf_eval): 需手动切换环境，已跳过。详见上方注释。"
+
+
+# vLLM 同时支持 Base / SFT / DPO / GPTQ，且 GPTQ 速度提升约 33x。
+# 需在 gptq_env 环境中运行（已由 setup.sh 提示创建）：
+#
+#   conda activate gptq_env
+#   python tests/evaluate_vllm.py
+#
+echo "=========================================="
+echo "  Step 12: vLLM 高并发评测（gptq_env）"
+echo "=========================================="
+if conda run -n gptq_env python -c "import vllm" 2>/dev/null; then
+    conda run -n gptq_env python tests/evaluate_vllm.py
+    echo "✅ vLLM 评测完成 -> output/vllm_dpo_alignment_compare.json"
+else
+    echo "⚠️  未检测到 gptq_env 环境或 vllm 未安装，跳过 Step 13。"
+    echo "    请手动执行："
+    echo "      conda activate gptq_env"
+    echo "      python tests/evaluate_vllm.py"
+fi
+
+echo ""
+echo "=========================================="
+echo "  Step 14: LLM-as-a-Judge 全面评测"
+echo "=========================================="
+# 前置条件：llm_judge_all.py 中的 YOUR_API_KEY 已替换为真实 DeepSeek Key
+python tools/llm_judge_all.py
+echo "✅ 评测完成 -> output/all_models_judge_results.json"
+
 
 echo ""
 echo "============================================"
