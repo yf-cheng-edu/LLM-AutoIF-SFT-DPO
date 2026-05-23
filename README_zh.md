@@ -501,8 +501,8 @@ bash scripts/run_all.sh --domain 建筑设计
 
 **📊 胜率战报截图：**
 <div align="center">
-  <img src="./images/base_vs_SFT&DPO.png" width="48%" title="Base vs SFT & DPO">
-  <img src="./images/base_vs_GPTQ_model.png" width="48%" title="Base vs GPTQ">
+  <img src="./images/GPTQ_model/vllm_GPTQ_model.png" width="48%" title="GPTQ vLLM">
+  <img src="./images/GPTQ_model/transformer_GPTQ_model.png" width="48%" title="GPTQ Transformers">
 </div>
 
 > 💡 **核心分析：**
