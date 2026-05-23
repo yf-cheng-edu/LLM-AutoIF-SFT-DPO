@@ -118,7 +118,7 @@ tail -f run.log
 
 > **Note:** This script includes an automatic environment-switching mechanism. During Stage 7 (quantization), it will automatically activate the `gptq_env` virtual environment. Make sure you have created this environment in advance (see Option B — Stage 5).
 
-#### Pipeline: 8 Automated Stages at a Glance
+#### Pipeline: 10 Automated Stages at a Glance
 
 - **Stage 1:** AutoIF data synthesis (9-step SFT construction + 3-step DPO construction and flattening).
 - **Stage 2 & 3:** SFT supervised fine-tuning and LoRA weight merging.
@@ -126,6 +126,8 @@ tail -f run.log
 - **Stage 6:** Offline comparison of Base / SFT / DPO model outputs.
 - **Stage 7:** Switch to `gptq_env` and perform GPTQ INT4 model quantization.
 - **Stage 8:** Launch vLLM INT4 local service and run automated API tests.
+- **Stage 9:** Extract 200 high-quality test samples from the synthesized dataset and run quantitative evaluation across Base / SFT / DPO / GPTQ four models using Transformers batch inference and vLLM.
+- **Stage 10:** Invoke DeepSeek LLM-as-a-Judge to conduct pairwise head-to-head comparisons across all four models and output a comprehensive win-rate report.
 
 ---
 
@@ -141,6 +143,11 @@ This stage calls the DeepSeek API to build SFT data across 9 steps and DPO data 
 # SFT data construction (Steps 1–9)
 python code_sft/1_RFT.py
 # ... run steps 2 through 8 sequentially ...
+python code_sft/6_concat_sharegpt_query.py
+# Extract 200 high-quality samples (with validator functions and at least one perfect-score response)
+# as a standardized test set for quantitative evaluation:
+python tools/extract_test_set.py
+# ...
 python code_sft/9_sft_data_construction.py
 
 # DPO data construction
@@ -260,6 +267,49 @@ python tests/test_vllm.py
   <img src="images/test_vllm_result.png" width="800" alt="vLLM Inference Test Results">
 </div>
 
+#### Stage 7 — Multi-Model Quantitative Evaluation
+
+**Option A: Transformers Batch Inference (base environment, evaluating Base / SFT / DPO)**
+
+```bash
+python tests/evaluate_hf_batched.py
+```
+
+**Option B (Optional): Transformers Batch Inference for GPTQ Model (requires a separate `hf_eval` environment)**
+
+Due to dependency conflicts between the GPTQ quantization library and the base environment, a separate environment is needed:
+
+```bash
+conda create -n hf_eval python=3.10 -y
+conda activate hf_eval
+pip install -r requirments_GPTQ_model_hf_eval.txt \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# In tests/evaluate_hf_batched.py, update models_to_test to keep only GPTQ-Model, then run:
+python tests/evaluate_hf_batched.py
+```
+
+> ⚠️ **Note:** GPTQ under native Transformers runs at approximately 45 tokens/s, significantly slower than vLLM (1482 tokens/s). This is caused by extra computational graph overhead and memory access bottlenecks — this is expected behavior. **Option C is recommended.**
+
+**Option C: vLLM High-Concurrency Batch Evaluation (gptq_env, evaluating all four models in one run)**
+
+```bash
+conda activate gptq_env
+python tests/evaluate_vllm.py
+```
+
+> vLLM delivers approximately **33x** faster inference on GPTQ models compared to native Transformers, and all four models can be evaluated in sequence within the same environment.
+
+#### Stage 8 — LLM-as-a-Judge Comprehensive Comparison
+
+After evaluation, use DeepSeek as the judge model to conduct pairwise head-to-head comparisons across all four models, comprehensively assessing instruction-following strictness and response quality:
+
+```bash
+# Ensure you have replaced YOUR_API_KEY with a real DeepSeek Key in llm_judge_all.py
+python tools/llm_judge_all.py
+# Output: output/all_models_judge_results.json
+```
+
 ---
 
 ## Domain Adaptation
@@ -374,6 +424,81 @@ We tested three model stages under challenging instructions with concurrent form
   <img src="images/DPO/DPO_response.png" width="750" alt="DPO model output with full constraint compliance">
   <p><i>After DPO preference alignment, Checkpoint 175 fully internalizes all compound constraints</i></p>
 </div>
+
+---
+
+### 3. Quantitative Evaluation & LLM Judge Summary
+
+The following data is based on a 200-sample standardized test set extracted from the synthesized dataset. It provides a comprehensive comparison of instruction-following capability progression across training stages and performance benchmarks across different inference backends.
+
+#### 3.1 Instruction-Following Accuracy & Inference Throughput (vLLM vs. Transformers)
+
+The table below summarizes the final results of each model under the vLLM inference framework (see raw benchmark screenshots below):
+
+| Model | Accuracy | Total Time | Batch Throughput (vLLM) |
+| --- | --- | --- | --- |
+| Base-Model (pre-training baseline) | 19.50% | 7.44 s | 1084.19 tokens/s |
+| SFT-Model (after supervised fine-tuning) | 28.50% | 7.05 s | 831.59 tokens/s |
+| DPO-Model (after preference alignment) | 37.00% | 7.02 s | 773.42 tokens/s |
+| GPTQ-Model (after INT4 quantization) | 36.00% | 8.70 s | **1467.55 tokens/s** |
+
+> 💡 **Key Findings:**
+> 1. **Capability gains:** Instruction-following accuracy rises steadily from Base → SFT → DPO. DPO preference alignment achieves a significant improvement of **+17.5 percentage points** over the base model (19.5% → 37%), demonstrating the effectiveness of human preference alignment training.
+> 2. **Quantization speedup:** GPTQ INT4 quantization delivers nearly lossless accuracy (36.00%, only 1% drop) while surging inference throughput to **nearly 1500 tokens/s** — approximately **2x** the speed of the aligned model.
+
+<details>
+<summary>👉 <b>Click to expand: Detailed benchmark screenshots per model (vLLM vs. Transformers)</b></summary>
+<br>
+
+*Note: Comparison reveals that vLLM holds an overwhelming advantage in concurrent inference, especially for GPTQ quantized models — native Transformers batch speed is only 45.38 tokens/s, while vLLM soars to 1467.55 tokens/s.*
+
+**1. Base-Model**
+<div align="center">
+  <img src="./images/base/vll_base.png" width="48%" title="Base vLLM">
+  <img src="./images/base/transformer_base.png" width="48%" title="Base Transformers">
+</div>
+
+**2. SFT-Model (Supervised Fine-Tuning)**
+<div align="center">
+  <img src="./images/SFT/vllm_SFT.png" width="48%" title="SFT vLLM">
+  <img src="./images/SFT/transformer_sft.png" width="48%" title="SFT Transformers">
+</div>
+
+**3. DPO-Model (Preference Alignment)**
+<div align="center">
+  <img src="./images/DPO/vllm_DPO.png" width="48%" title="DPO vLLM">
+  <img src="./images/DPO/transformer_DPO.png" width="48%" title="DPO Transformers">
+</div>
+
+**4. GPTQ-Model (INT4 Quantization)**
+<div align="center">
+  <img src="./images/GPTQ_model/vllm_GPTQ_model.png" width="48%" title="GPTQ vLLM">
+  <img src="./images/GPTQ_model/transformer_GPTQ_model.png" width="48%" title="GPTQ Transformers">
+</div>
+
+</details>
+
+---
+
+#### 3.2 LLM-as-a-Judge Pairwise Win Rates
+
+In addition to objective instruction-following tests, we conducted blind pairwise comparisons via LLM Judge to further assess overall response quality (tone, coherence, informativeness):
+
+| Matchup | Left Model Win Rate | Right Model Win Rate | Tie Rate |
+| --- | --- | --- | --- |
+| 【Base】 vs 【SFT】 | 33.50% | **46.50%** | 20.00% |
+| 【Base】 vs 【DPO】 | 38.50% | **43.50%** | 18.00% |
+| 【Base】 vs 【GPTQ】 | 41.00% | **47.50%** | 11.50% |
+
+**📊 Win-Rate Report Screenshots:**
+<div align="center">
+  <img src="./images/base_vs_SFT&DPO.png" width="60%" title="Base vs SFT & DPO">
+  <br><br> <img src="./images/base_vs_GPTQ_model.png" width="60%" title="Base vs GPTQ">
+</div>
+
+> 💡 **Key Findings:**
+> - Compared to the baseline, fine-tuned and aligned models (SFT & DPO) hold a significant advantage in direct comparisons.
+> - Notably, **the GPTQ quantized model not only avoids a sharp drop in response quality, but achieves a win rate of 47.50% in head-to-head matchups against Base**. This demonstrates that the current INT4 quantization approach excellently preserves the model's generalization capability and semantic coherence — truly delivering both speed and quality.
 
 ---
 
