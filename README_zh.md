@@ -487,7 +487,6 @@ bash scripts/run_all.sh --domain 建筑设计
   <img src="./images/GPTQ_model/transformer_GPTQ_model.png" width="48%" title="GPTQ Transformers">
 </div>
 
----
 
 #### 3.2 LLM-as-a-Judge 两两对比胜率
 
