@@ -446,11 +446,8 @@ The table below summarizes the final results of each model under the vLLM infere
 > 1. **Capability gains:** Instruction-following accuracy rises steadily from Base → SFT → DPO. DPO preference alignment achieves a significant improvement of **+17.5 percentage points** over the base model (19.5% → 37%), demonstrating the effectiveness of human preference alignment training.
 > 2. **Quantization speedup:** GPTQ INT4 quantization delivers nearly lossless accuracy (36.00%, only 1% drop) while surging inference throughput to **nearly 1500 tokens/s** — approximately **2x** the speed of the aligned model.
 
-<details>
-<summary>👉 <b>Click to expand: Detailed benchmark screenshots per model (vLLM vs. Transformers)</b></summary>
-<br>
-
-*Note: Comparison reveals that vLLM holds an overwhelming advantage in concurrent inference, especially for GPTQ quantized models — native Transformers batch speed is only 45.38 tokens/s, while vLLM soars to 1467.55 tokens/s.*
+**📊 Detailed Performance Reports Comparison:**
+*(Note: The comparison reveals that vLLM exhibits a decisive advantage in concurrent inference. Especially for the GPTQ quantized model, Transformers native batch processing speed is only 45.38 tokens/s, while vLLM soars to 1467.55 tokens/s.)*
 
 **1. Base-Model**
 <div align="center">
@@ -458,13 +455,13 @@ The table below summarizes the final results of each model under the vLLM infere
   <img src="./images/base/transformer_base.png" width="48%" title="Base Transformers">
 </div>
 
-**2. SFT-Model (Supervised Fine-Tuning)**
+**2. SFT-Model**
 <div align="center">
   <img src="./images/SFT/vllm_SFT.png" width="48%" title="SFT vLLM">
   <img src="./images/SFT/transformer_sft.png" width="48%" title="SFT Transformers">
 </div>
 
-**3. DPO-Model (Preference Alignment)**
+**3. DPO-Model**
 <div align="center">
   <img src="./images/DPO/vllm_DPO.png" width="48%" title="DPO vLLM">
   <img src="./images/DPO/transformer_DPO.png" width="48%" title="DPO Transformers">
@@ -475,8 +472,6 @@ The table below summarizes the final results of each model under the vLLM infere
   <img src="./images/GPTQ_model/vllm_GPTQ_model.png" width="48%" title="GPTQ vLLM">
   <img src="./images/GPTQ_model/transformer_GPTQ_model.png" width="48%" title="GPTQ Transformers">
 </div>
-
-</details>
 
 ---
 
