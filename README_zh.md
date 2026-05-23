@@ -122,7 +122,7 @@ tail -f run.log
 
 > **注意：** 该脚本包含自动环境切换机制。在阶段 7 进行量化时，会自动激活独立的 `gptq_env` 虚拟环境。请确保您已提前创建该环境（详见选项 B - 阶段 5）。
 
-#### 流水线 8 大自动阶段概览
+#### 流水线 10 大自动阶段概览
 
 * **阶段 1：** AutoIF 数据合成（9 步 SFT 构造 + 3 步 DPO 构造及展平）。
 * **阶段 2 & 3：** SFT 监督微调训练与 LoRA 权重合并。
@@ -130,6 +130,8 @@ tail -f run.log
 * **阶段 6：** 基础 / SFT / DPO 模型的离线效果比对。
 * **阶段 7：** 切换至 `gptq_env`，执行 GPTQ INT4 模型量化。
 * **阶段 8：** 启动 vLLM INT4 本地服务并进行 API 自动化测试。
+* **阶段 9：** 从合成数据集中提取 200 条高质量测试集，并使用 Transformers 批处理与 vLLM 对 Base / SFT / DPO / GPTQ 四模型进行量化评测。
+* **阶段 10：** 调用 DeepSeek LLM-as-a-Judge 对四模型进行两两 PK，输出完整胜率战报。
 
 ---
 
@@ -142,9 +144,13 @@ tail -f run.log
 本阶段将调用 DeepSeek API，通过 9 步构建 SFT 数据，并通过 3 步构建 DPO 数据。
 
 ```bash
-# SFT 数据构建 (步骤 1–9)
+# SFT 数据构建
 python code_sft/1_RFT.py
 # ... 顺序执行步骤 2 至步骤 8 ...
+python code_sft/6_concat_sharegpt_query.py
+# 筛选出 200 条有验证函数且至少有一个满分回答的高质量样本，作为后续量化评测的标准测试集：
+python tools/extract_test_set.py
+# ...
 python code_sft/9_sft_data_construction.py
 
 # DPO 数据构建
@@ -271,6 +277,67 @@ python tests/test_vllm.py
   <img src="images/test_vllm_result.png" width="800" alt="vLLM 推理测试结果">
 </div>
 
+#### 阶段 7 — 多模型量化评测
+
+**方案 A：Transformers 批处理（base 环境，评测 Base / SFT / DPO）**
+
+```bash
+python tests/evaluate_hf_batched.py
+```
+
+| 模型 | 指令遵循准确率 | 总耗时 | 并发速度 |
+| --- | --- | --- | --- |
+| Base-Model | 21.50% | 81.69 秒 | 104.58 tokens/s |
+| SFT-Model | 28.00% | 45.46 秒 | 131.80 tokens/s |
+| DPO-Model | 38.00% | 51.01 秒 | 111.82 tokens/s |
+
+**方案 B（可选）：Transformers 批处理评测 GPTQ 模型（需独立 hf_eval 环境）**
+
+由于 GPTQ 量化库与 base 环境存在依赖冲突，需单独创建环境：
+
+```bash
+conda create -n hf_eval python=3.10 -y
+conda activate hf_eval
+pip install -r requirments_GPTQ_model_hf_eval.txt \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 将 tests/evaluate_hf_batched.py 中 models_to_test 改为只保留 GPTQ-Model，然后运行：
+python tests/evaluate_hf_batched.py
+```
+
+> ⚠️ **注意：** GPTQ 在原生 Transformers 下速度约为 45 tokens/s，明显慢于 vLLM 方案（1482 tokens/s）。这是由计算图额外开销与内存访存瓶颈共同导致的，属正常现象。**推荐优先使用方案 C。**
+
+**方案 C：vLLM 高并发批量评测（gptq_env 环境，同时评测全部四模型）**
+
+```bash
+conda activate gptq_env
+python tests/evaluate_vllm.py
+```
+
+| 模型 | 指令遵循准确率 | 总耗时 | 并发速度 |
+| --- | --- | --- | --- |
+| Base-Model | 19.50% | 7.44 秒 | 1084.19 tokens/s |
+| SFT-Model | 28.50% | 7.05 秒 | 831.59 tokens/s |
+| DPO-Model | 37.00% | 7.02 秒 | 773.42 tokens/s |
+| GPTQ-Model | 36.00% | 8.70 秒 | **1467.55 tokens/s** |
+
+> vLLM 对 GPTQ 模型的推理速度约为原生 Transformers 的 **33 倍**，且四模型可在同一环境下一键串联评测。
+
+#### 阶段 8 — LLM-as-a-Judge 全面对比
+
+评测完成后，使用 DeepSeek 作为裁判模型对四个模型进行两两 PK，综合评估指令遵循的严格度与回答质量：
+
+```bash
+# 确保已在 llm_judge_all.py 中替换 YOUR_API_KEY 为真实 DeepSeek Key
+python tools/llm_judge_all.py
+# 输出：output/all_models_judge_results.json
+```
+
+| 对决组合 | 胜者胜率 | 败者胜率 | 平局率 |
+| --- | --- | --- | --- |
+| Base vs SFT | SFT **46.50%** | Base 33.50% | 20.00% |
+| Base vs DPO | DPO **43.50%** | Base 38.50% | 18.00% |
+
 ---
 
 ## 领域适配
@@ -388,6 +455,28 @@ bash scripts/run_all.sh --domain 建筑设计
 </div>
 
 ---
+
+### 3. 量化评测与 LLM Judge 汇总
+
+以下数据基于从合成数据集提取的 200 条标准测试集，综合对比了各训练阶段模型的指令遵循能力进化路径：
+
+**指令遵循准确率（vLLM 评测）**
+
+| 模型 | 准确率 | 推理速度 |
+| --- | --- | --- |
+| Base-Model（训练前基线） | 19.50% | 1084 tokens/s |
+| SFT-Model（监督微调后） | 28.50% | 832 tokens/s |
+| DPO-Model（偏好对齐后） | 37.00% | 773 tokens/s |
+| GPTQ-Model（INT4 量化后） | 35.50% | **1482 tokens/s** |
+
+> DPO 对齐相比基座模型准确率提升 **+17.5 个百分点**；GPTQ INT4 量化在准确率几乎无损（-1.5%）的前提下，推理吞吐量提升约 **2×**。
+
+**LLM-as-a-Judge 两两对比胜率**
+
+| 对决组合 | 左侧胜率 | 右侧胜率 | 平局率 |
+| --- | --- | --- | --- |
+| Base vs SFT | 33.50% | **46.50%** | 20.00% |
+| Base vs DPO | 38.50% | **43.50%** | 18.00% |
 
 ## 流水线统计数据
 
