@@ -108,9 +108,7 @@ def main():
 
             # ✨ 4. 配置 vLLM 的采样参数 
             sampling_params = SamplingParams(
-                temperature=0.6,        
-                top_p=0.85,              
-                top_k=50,               
+                temperature=0,                    
                 repetition_penalty=1.05,
                 max_tokens=512,
                 stop_token_ids=[tokenizer.eos_token_id, 151645, 151643]
