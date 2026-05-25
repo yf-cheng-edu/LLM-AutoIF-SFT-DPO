@@ -44,7 +44,7 @@
 
 **AutoIF-LLM** is an end-to-end engineering framework designed to address the prohibitive costs of manual data annotation when fine-tuning Large Language Models (LLMs) for vertical domains.
 
-For its core data synthesis logic, this project adopts the "Execution Feedback and Self-Play" mechanism—proposed in the ICLR 2025 Spotlight paper *Self-play with Execution Feedback*—as its theoretical kernel. Serving as a comprehensive system-level engineering implementation of this theory, AutoIF-LLM establishes an end-to-end, fully automated, and zero-human-intervention workflow that spans: "Seed Instruction Generation → Multi-stage Data Synthesis Pipeline → SFT (Supervised Fine-Tuning) → DPO (Direct Preference Optimization) → INT4 Model Quantization → High-throughput vLLM Deployment."
+For its data synthesis logic, this project adopts the "Execution Feedback and Self-Play" mechanism—proposed in the ICLR 2025 Spotlight paper *Self-play with Execution Feedback*—as its theoretical kernel. Serving as a comprehensive system-level engineering implementation of this theory, AutoIF-LLM establishes an end-to-end, fully automated, and zero-human-intervention workflow that spans: "Seed Instruction Generation → Multi-stage Data Synthesis Pipeline → SFT (Supervised Fine-Tuning) → DPO (Direct Preference Optimization) → INT4 Model Quantization → High-throughput vLLM Deployment."
 
 This framework boasts strong **cross-domain versatility**. By simply replacing the seed instruction file, users can rapidly generate training data and customize fine-tuned models for over 30 vertical domains (e.g., Law, Finance, Healthcare), all capable of running smoothly on a single GPU.
 
