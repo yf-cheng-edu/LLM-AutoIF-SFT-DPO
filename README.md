@@ -7,9 +7,7 @@
 
 # AutoIF-LLM
 
-**Domain-Specific Model Optimization via AutoIF Data Synthesis and SFT+DPO Alignment**
-
-*Based on: [Self-play with Execution Feedback (ICLR 2025 Spotlight)](https://arxiv.org/abs/2406.13542)*
+**An End-to-End Automated Fine-Tuning and Alignment System for Domain-Specific LLMs**
 
 ---
 
@@ -44,9 +42,11 @@
 
 ## Project Overview
 
-**AutoIF-LLM** is a fully automated fine-tuning framework designed to significantly improve the instruction-following capabilities of large language models (LLMs) through **Execution Feedback** and **Self-Play**. The framework adopts a **Teacher-Student** architecture combined with a multi-stage data synthesis pipeline, capable of automatically generating high-quality Supervised Fine-Tuning (SFT) and Direct Preference Optimization (DPO) data from a minimal set of seed instructions — **entirely without human annotation**.
+**AutoIF-LLM** is an end-to-end engineering framework designed to address the prohibitive costs of manual data annotation when fine-tuning Large Language Models (LLMs) for vertical domains.
 
-The framework offers strong **cross-domain generalizability**: simply swap the seed instruction file to automatically generate domain-specific fine-tuning data for any of 30+ vertical industries (e.g., legal, finance, healthcare).
+For its core data synthesis algorithm, this project **deeply references and integrates the cutting-edge theory of "Execution Feedback and Self-Play" proposed in the ICLR 2025 Spotlight paper [Self-play with Execution Feedback](https://arxiv.org/abs/2406.13542).** Building upon this solid theoretical foundation, AutoIF-LLM introduces extensive system-level engineering enhancements. It establishes a **fully automated, zero-human-intervention workflow** spanning from "seed instruction generation → multi-stage data synthesis pipeline → Supervised Fine-Tuning (SFT) → Direct Preference Optimization (DPO) → INT4 model quantization → high-throughput vLLM deployment."
+
+This framework boasts strong **cross-domain versatility**. By simply replacing the seed instruction file, users can rapidly generate training data and customize fine-tuned models for over 30 vertical domains (e.g., Law, Finance, Healthcare), all capable of running smoothly on a single GPU.
 
 ---
 
@@ -441,17 +441,17 @@ The table below summarizes the final results of each model under the vLLM infere
 
 | Model | Accuracy | Total Time | Batch Throughput (vLLM) |
 | --- | --- | --- | --- |
-| Base-Model (pre-training baseline) | 19.50% | 7.44 s | 1084.19 tokens/s |
-| SFT-Model (after supervised fine-tuning) | 28.50% | 7.05 s | 831.59 tokens/s |
-| DPO-Model (after preference alignment) | 37.00% | 7.02 s | 773.42 tokens/s |
-| GPTQ-Model (after INT4 quantization) | 36.00% | 8.70 s | **1467.55 tokens/s** |
+| Base-Model (pre-training baseline) | 20.50% | 7.01 s | 1263.00 tokens/s |
+| SFT-Model (after supervised fine-tuning) | 30.50% | 5.05 s | 1114.12 tokens/s |
+| DPO-Model (after preference alignment) | 38.00% | 6.89 s | 900.03 tokens/s |
+| GPTQ-Model (after INT4 quantization) | 36.00% | 7.95 s | **1782.67 tokens/s** |
 
 > 💡 **Key Findings:**
-> 1. **Capability gains:** Instruction-following accuracy rises steadily from Base → SFT → DPO. DPO preference alignment achieves a significant improvement of **+17.5 percentage points** over the base model (19.5% → 37%), demonstrating the effectiveness of human preference alignment training.
-> 2. **Quantization speedup:** GPTQ INT4 quantization delivers nearly lossless accuracy (36.00%, only 1% drop) while surging inference throughput to **nearly 1500 tokens/s** — approximately **2x** the speed of the aligned model.
+> 1. **Capability gains:** Instruction-following accuracy rises steadily from Base → SFT → DPO. DPO preference alignment achieves a significant improvement of **+17.5 percentage points** over the base model (20.5% → 38%), demonstrating the effectiveness of human preference alignment training.
+> 2. **Quantization speedup:** GPTQ INT4 quantization delivers nearly lossless accuracy (36.00%, only 2% drop) while surging inference throughput to **nearly 1800 tokens/s** — approximately **2x** the speed of the aligned model.
 
 **📊 Detailed Performance Reports Comparison:**
-*(Note: The comparison reveals that vLLM exhibits a decisive advantage in concurrent inference. Especially for the GPTQ quantized model, Transformers native batch processing speed is only 45.38 tokens/s, while vLLM soars to 1467.55 tokens/s.)*
+*(Note: The comparison reveals that vLLM exhibits a decisive advantage in concurrent inference. Especially for the GPTQ quantized model, Transformers native batch processing speed is only 47.56 tokens/s, while vLLM soars to 1782.67 tokens/s.)*
 
 **1. Base-Model**
 <div align="center">
@@ -551,9 +551,9 @@ AutoIF-LLM/
 
 ---
 
-## Citation
+## Acknowledgments & Theoretical Foundation
 
-If you use the AutoIF framework in academic research or if this project inspires your work, please cite the original paper:
+The core logic of automated data synthesis and execution feedback in this framework was profoundly inspired by the outstanding research of Dong et al. We pay tribute to the open-source spirit and exploratory work of the original authors. If you utilize the data synthesis pipeline of this framework in your research, please ensure you cite the original paper:
 
 ```bibtex
 @inproceedings{dong2025self,
