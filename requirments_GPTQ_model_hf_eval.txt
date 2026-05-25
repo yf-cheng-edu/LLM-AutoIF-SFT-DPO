@@ -1,0 +1,21 @@
+# 核心深度学习框架
+torch==2.12.0+cu130
+torchvision
+torchaudio
+
+# 模型加载与处理
+transformers==4.42.4
+peft==0.11.1
+accelerate==1.13.0
+
+# 量化模型支持
+optimum==1.21.0
+auto-gptq==0.7.1
+
+# 数据处理与通用依赖
+numpy==1.26.4
+tqdm==4.67.3
+safetensors==0.7.0
+huggingface-hub==0.36.2
+tokenizers==0.19.1
+sentencepiece==0.2.1
