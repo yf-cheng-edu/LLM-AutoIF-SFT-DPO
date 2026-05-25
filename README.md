@@ -44,7 +44,7 @@
 
 **AutoIF-LLM** is an end-to-end engineering framework designed to address the prohibitive costs of manual data annotation when fine-tuning Large Language Models (LLMs) for vertical domains.
 
-For its core data synthesis algorithm, this project **deeply references and integrates the cutting-edge theory of "Execution Feedback and Self-Play" proposed in the ICLR 2025 Spotlight paper [Self-play with Execution Feedback](https://arxiv.org/abs/2406.13542).** Building upon this solid theoretical foundation, AutoIF-LLM introduces extensive system-level engineering enhancements. It establishes a **fully automated, zero-human-intervention workflow** spanning from "seed instruction generation → multi-stage data synthesis pipeline → Supervised Fine-Tuning (SFT) → Direct Preference Optimization (DPO) → INT4 model quantization → high-throughput vLLM deployment."
+For its core data synthesis algorithm, this project references the cutting-edge theory of "Execution Feedback and Self-Play" proposed in the ICLR 2025 Spotlight paper *Self-play with Execution Feedback*. Based on this theoretical foundation, AutoIF-LLM conducts comprehensive system-level engineering expansions, establishing a fully automated, zero-human-intervention workflow that spans: "Seed Instruction Generation → Multi-stage Data Synthesis Pipeline → SFT (Supervised Fine-Tuning) → DPO (Direct Preference Optimization) → INT4 Model Quantization → High-throughput vLLM Deployment."
 
 This framework boasts strong **cross-domain versatility**. By simply replacing the seed instruction file, users can rapidly generate training data and customize fine-tuned models for over 30 vertical domains (e.g., Law, Finance, Healthcare), all capable of running smoothly on a single GPU.
 
@@ -553,7 +553,7 @@ AutoIF-LLM/
 
 ## Acknowledgments & Theoretical Foundation
 
-The core logic of automated data synthesis and execution feedback in this framework was profoundly inspired by the outstanding research of Dong et al. We pay tribute to the open-source spirit and exploratory work of the original authors. If you utilize the data synthesis pipeline of this framework in your research, please ensure you cite the original paper:
+The core logic of automated data synthesis and execution feedback in this framework was profoundly inspired by the outstanding research of Dong et al. We pay tribute to the open-source spirit of the original authors. If you utilize the data synthesis pipeline of this framework in your research, please ensure you cite the original paper:
 
 ```bibtex
 @inproceedings{dong2025self,
