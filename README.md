@@ -443,7 +443,7 @@ The table below summarizes the final results of each model under the vLLM infere
 | --- | --- | --- | --- |
 | Base-Model (pre-training baseline) | 20.50% | 7.01 s | 1263.00 tokens/s |
 | SFT-Model (after supervised fine-tuning) | 30.50% | 5.05 s | 1114.12 tokens/s |
-| DPO-Model (after preference alignment) | 38.00% | 6.89 s | 900.03 tokens/s |
+| DPO-Model (after preference alignment) | 38.00% | 6.89 s | 900.63 tokens/s |
 | GPTQ-Model (after INT4 quantization) | 36.00% | 7.95 s | **1782.67 tokens/s** |
 
 > 💡 **Key Findings:**
