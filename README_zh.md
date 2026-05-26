@@ -454,7 +454,7 @@ bash scripts/run_all.sh --domain 建筑设计
 | --- | --- | --- | --- |
 | Base-Model（训练前基线） | 20.50% | 7.01 秒 | 1263.00 tokens/s |
 | SFT-Model（监督微调后） | 30.50% | 5.05 秒 | 1114.12 tokens/s |
-| DPO-Model（偏好对齐后） | 38.00% | 6.89 秒 | 900.03 tokens/s |
+| DPO-Model（偏好对齐后） | 38.00% | 6.89 秒 | 900.63 tokens/s |
 | GPTQ-Model（INT4 量化后） | 36.00% | 7.95 秒 | **1782.67 tokens/s** |
 
 > 💡 **核心分析：**
